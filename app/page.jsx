@@ -66,7 +66,7 @@ export default function Home() {
           <ul className="space-y-3">
             <li className="flex items-start">
               <span className="text-orange-500 mr-2">✓</span>
-              <span>Next.js App Router with TypeScript</span>
+              <span>Next.js App Router with JavaScript</span>
             </li>
             <li className="flex items-start">
               <span className="text-orange-500 mr-2">✓</span>
@@ -83,6 +83,10 @@ export default function Home() {
             <li className="flex items-start">
               <span className="text-orange-500 mr-2">✓</span>
               <span>Responsive design for all devices</span>
+            </li>
+            <li className="flex items-start">
+              <span className="text-orange-500 mr-2">✓</span>
+              <span>Authentication system with MongoDB</span>
             </li>
           </ul>
         </section>

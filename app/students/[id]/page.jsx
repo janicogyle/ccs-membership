@@ -1,14 +1,8 @@
-interface StudentDetailPageProps {
-  params: Promise<{
-    id: string;
-  }>;
-}
-
-export default async function StudentDetailPage({ params }: StudentDetailPageProps) {
+export default async function StudentDetailPage({ params }) {
   const { id } = await params;
   
   // Sample student data
-  const studentsData: Record<string, { name: string; course: string; email: string; year: string; gpa: string }> = {
+  const studentsData = {
     "1": {
       name: "John Doe",
       course: "Computer Science",
