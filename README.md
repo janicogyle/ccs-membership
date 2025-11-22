@@ -33,3 +33,30 @@ Visit http://localhost:3000
 - 📄 Multiple pages (Home, About, Students, Contact)
 - 🎨 Tailwind CSS styling
 - ⚡ Next.js 15 with JavaScript
+- ⚛️ **Atomic Design Pattern** implementation
+- 📘 **TypeScript interfaces** for type safety
+- 🧩 Reusable component architecture
+
+## Architecture
+
+This project follows the **Atomic Design Pattern** methodology:
+
+### Component Structure
+```
+components/
+├── atoms/       # Basic UI elements (Button, Input, Label, Logo, Text)
+├── molecules/   # Simple component groups (FormField, NavLink, Card)
+├── organisms/   # Complex UI sections (Header, LoginForm, HeroSection)
+└── templates/   # Page layouts (AuthTemplate, PageTemplate)
+```
+
+### TypeScript Interfaces
+```
+types/
+├── api.ts          # API response types
+├── components.ts   # Component prop types
+└── index.ts        # Barrel exports
+```
+
+**📚 See [ATOMIC_DESIGN.md](./ATOMIC_DESIGN.md) for detailed documentation**
+**📊 See [COMPONENT_STRUCTURE.md](./COMPONENT_STRUCTURE.md) for visual diagrams**
