@@ -11,3 +11,6 @@ export * from './organisms';
 
 // Templates - Page-level layouts
 export * from './templates';
+
+// Protection & Routing
+export { ProtectedRoute, withProtectedRoute } from './ProtectedRoute';

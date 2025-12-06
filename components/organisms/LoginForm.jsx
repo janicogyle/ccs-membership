@@ -1,17 +1,41 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Button } from '@/components/atoms';
 import { FormField } from '@/components/molecules';
+import { useAuth } from '@/contexts/AuthContext';
+import { API_ENDPOINTS, MESSAGES } from '@/constants';
+import authService from '@/services/authService';
 
-export default function LoginForm({ onSubmit, loading, error }) {
+export default function LoginForm({ onSubmit, loading: externalLoading, error: externalError }) {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(externalLoading || false);
+  const [error, setError] = useState(externalError || null);
+  const { login } = useAuth();
+  const router = useRouter();
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
-    onSubmit({ email, password });
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await authService.login({ email, password });
+
+      if (result.success) {
+        login(result.user, result.token);
+        router.push('/');
+      } else {
+        setError(result.message || MESSAGES.LOGIN_FAILED);
+      }
+    } catch (err) {
+      setError(MESSAGES.GENERIC_ERROR);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -54,8 +78,8 @@ export default function LoginForm({ onSubmit, loading, error }) {
         <Button
           type="submit"
           variant="primary"
-          fullWidth
           loading={loading}
+          disabled={loading}
         >
           {loading ? 'Signing in...' : 'Sign in'}
         </Button>

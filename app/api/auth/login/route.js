@@ -1,72 +1,38 @@
-import { NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/mongodb';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { loginUser } from '@/lib/firebaseAuthService'
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const { email, password } = body;
+    const body = await request.json()
+    const { email, password } = body
 
-    // Validate input
+    // Validation
     if (!email || !password) {
-      return NextResponse.json(
-        { success: false, message: 'Email and password are required' },
-        { status: 400 }
-      );
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'Email and password are required',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
     }
 
-    // Get database connection
-    const db = await getDatabase();
-    const usersCollection = db.collection('users');
+    const result = await loginUser(email, password)
 
-    // Find user
-    const user = await usersCollection.findOne({ email });
-
-    if (!user) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
-
-    // Verify password
-    const isValidPassword = await bcrypt.compare(password, user.password);
-
-    if (!isValidPassword) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid credentials' },
-        { status: 401 }
-      );
-    }
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: user._id, email: user.email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    return NextResponse.json(
+    return new Response(
+      JSON.stringify(result),
       {
-        success: true,
-        message: 'Login successful',
-        user: {
-          _id: user._id.toString(),
-          email: user.email,
-          name: user.name,
-        },
-        token,
-      },
-      { status: 200 }
-    );
+        status: result.success ? 200 : 401,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
   } catch (error) {
-    console.error('Login error:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
+    console.error('Login error:', error)
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: 'Login failed',
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
   }
 }

@@ -1,23 +1,17 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-
 import { Logo } from '@/components/atoms';
 import { NavLink, AuthButtons } from '@/components/molecules';
-import authService from '@/services/authService';
+import { useAuth } from '@/contexts/AuthContext';
+import Link from 'next/link';
 
 export default function Header({ className = '' }) {
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const { isAuthenticated, logout, user } = useAuth();
   const router = useRouter();
 
-  useEffect(() => {
-    setIsAuthenticated(authService.isAuthenticated());
-  }, []);
-
   const handleLogout = async () => {
-    await authService.logout();
-    setIsAuthenticated(false);
+    logout();
     router.push('/auth/login');
   };
 
@@ -36,10 +30,21 @@ export default function Header({ className = '' }) {
             <NavLink href="/about">About</NavLink>
             <NavLink href="/students">Students</NavLink>
             <NavLink href="/contact">Contact</NavLink>
+            {isAuthenticated && user?.isAdmin && (
+              <NavLink href="/admin/dashboard">Admin</NavLink>
+            )}
           </div>
 
           {/* Auth Buttons */}
           <div className="flex items-center space-x-4">
+            {isAuthenticated && (
+              <Link
+                href="/profile"
+                className="text-gray-700 hover:text-blue-600 text-sm font-medium"
+              >
+                {user?.name}
+              </Link>
+            )}
             <AuthButtons
               isAuthenticated={isAuthenticated}
               onLogout={handleLogout}

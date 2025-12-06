@@ -1,63 +1,51 @@
-import { NextResponse } from 'next/server';
-import { getDatabase } from '@/lib/mongodb';
-import bcrypt from 'bcryptjs';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET;
+import { registerUser } from '@/lib/firebaseAuthService'
 
 export async function POST(request) {
   try {
-    const body = await request.json();
-    const { email, password, name } = body;
+    const body = await request.json()
+    const { email, name, password } = body
 
-    // Validate input
-    if (!email || !password || !name) {
-      return NextResponse.json(
-        { success: false, message: 'All fields are required' },
-        { status: 400 }
-      );
+    // Validation
+    if (!email || !name || !password) {
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'Missing required fields',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
     }
 
-    // Validate email format
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json(
-        { success: false, message: 'Invalid email format' },
-        { status: 400 }
-      );
-    }
-
-    // Validate password length
     if (password.length < 6) {
-      return NextResponse.json(
-        { success: false, message: 'Password must be at least 6 characters' },
-        { status: 400 }
-      );
+      return new Response(
+        JSON.stringify({
+          success: false,
+          message: 'Password must be at least 6 characters',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } }
+      )
     }
 
-    // Get database connection
-    const db = await getDatabase();
-    const usersCollection = db.collection('users');
+    const result = await registerUser(email, name, password)
 
-    // Check if user already exists
-    const existingUser = await usersCollection.findOne({ email });
-
-    if (existingUser) {
-      return NextResponse.json(
-        { success: false, message: 'User already exists with this email' },
-        { status: 409 }
-      );
-    }
-
-    // Hash password
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    // Create user
-    const result = await usersCollection.insertOne({
-      email,
-      password: hashedPassword,
-      name,
-      createdAt: new Date(),
+    return new Response(
+      JSON.stringify(result),
+      {
+        status: result.success ? 201 : 400,
+        headers: { 'Content-Type': 'application/json' },
+      }
+    )
+  } catch (error) {
+    console.error('Register error:', error)
+    return new Response(
+      JSON.stringify({
+        success: false,
+        message: 'Registration failed',
+      }),
+      { status: 500, headers: { 'Content-Type': 'application/json' } }
+    )
+  }
+}
       updatedAt: new Date(),
     });
 
