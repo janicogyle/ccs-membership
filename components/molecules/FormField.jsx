@@ -12,10 +12,17 @@ export default function FormField({
   required = false,
   disabled = false,
   placeholder,
+  labelClassName = '',
 }) {
+  const resolvedLabelClass = labelClassName || 'text-orange-200';
+
   return (
-    <div>
-      <Label htmlFor={id} required={required} className="mb-1.5 block text-left">
+    <div className="space-y-2">
+      <Label
+        htmlFor={id}
+        required={required}
+        className={`block text-left text-sm font-semibold ${resolvedLabelClass}`}
+      >
         {label}
       </Label>
       <Input
@@ -30,7 +37,7 @@ export default function FormField({
         className="w-full text-left"
       />
       {error && (
-        <p className="mt-1.5 text-xs text-red-500 text-left">{error}</p>
+        <p className="text-xs font-medium text-red-400 text-left">{error}</p>
       )}
     </div>
   );

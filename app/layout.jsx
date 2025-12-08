@@ -28,7 +28,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <ToastProvider>
             <Header />
-            <main className="pt-16">{children}</main>
+            {children}
           </ToastProvider>
         </AuthProvider>
       </body>

@@ -115,37 +115,37 @@ export default function AdminLayout({ children }) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top Navbar - Full Width */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-purple-500 to-purple-600 flex items-center justify-between px-8 z-40 shadow-md">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-between px-8 z-40 shadow-lg">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-sm">
-            <span className="text-purple-600 font-bold text-sm">CCS</span>
+            <span className="text-orange-600 font-black text-sm">CCS</span>
           </div>
-          <span className="text-xl font-bold text-white">CCS Admin Panel</span>
+          <span className="text-xl font-black text-white">CCS Admin Panel</span>
         </div>
         <nav className="flex items-center gap-6">
-          <Link href="/" className="text-white hover:text-purple-100 text-sm font-medium transition-colors">Home</Link>
-          <Link href="/about" className="text-white hover:text-purple-100 text-sm font-medium transition-colors">About</Link>
-          <Link href="/contact" className="text-white hover:text-purple-100 text-sm font-medium transition-colors">Contact</Link>
-          <span className="text-white text-sm font-medium border-l border-purple-400 pl-6">{user?.name || 'Admin'}</span>
-          <button onClick={handleLogout} className="text-white hover:text-purple-100 text-sm font-medium transition-colors">Logout</button>
+          <Link href="/" className="text-white hover:text-orange-100 text-sm font-semibold transition-colors">Home</Link>
+          <Link href="/about" className="text-white hover:text-orange-100 text-sm font-semibold transition-colors">About</Link>
+          <Link href="/contact" className="text-white hover:text-orange-100 text-sm font-semibold transition-colors">Contact</Link>
+          <span className="text-white text-sm font-semibold border-l border-orange-400 pl-6">{user?.name || 'Admin'}</span>
+          <button onClick={handleLogout} className="text-white hover:text-orange-100 text-sm font-semibold transition-colors">Logout</button>
         </nav>
       </header>
 
       {/* Sidebar */}
-      <aside className="fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-slate-200 flex flex-col z-30 shadow-sm overflow-y-auto">
+      <aside className="fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-slate-200 flex flex-col z-30 shadow-lg overflow-y-auto">
         {/* User Info */}
         <div className="px-4 py-4 border-b border-slate-200 flex-shrink-0">
-          <div className="flex items-center gap-3 p-3 bg-purple-50 rounded-xl">
-            <div className="w-11 h-11 bg-gradient-to-br from-purple-400 to-purple-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
-              <span className="text-white font-bold text-base">
+          <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
+            <div className="w-11 h-11 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+              <span className="text-white font-black text-base">
                 {user?.name?.charAt(0) || 'A'}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-900 truncate">
+              <p className="text-sm font-bold text-slate-900 truncate">
                 {user?.name || 'Admin'}
               </p>
-              <p className="text-xs text-purple-600 font-medium">Super Admin</p>
+              <p className="text-xs text-orange-600 font-bold">Super Admin</p>
             </div>
           </div>
         </div>
@@ -159,10 +159,10 @@ export default function AdminLayout({ children }) {
                 key={item.name}
                 href={item.href}
                 className={`
-                  flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                  flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200
                   ${
                     isActive
-                      ? 'bg-gradient-to-r from-purple-500 to-purple-600 text-white shadow-md'
+                      ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md'
                       : 'text-slate-700 hover:bg-slate-50 hover:text-slate-900'
                   }
                 `}
@@ -180,7 +180,7 @@ export default function AdminLayout({ children }) {
         <div className="p-4 border-t border-slate-200 flex-shrink-0">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-slate-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
           >
             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />

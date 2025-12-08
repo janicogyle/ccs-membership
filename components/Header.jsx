@@ -21,27 +21,28 @@ export default function Header() {
   };
 
   return (
-    <header className="bg-orange-500 shadow-md fixed top-0 left-0 right-0 z-50">
-      <nav className="max-w-7xl mx-auto px-6">
+    <header className="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-50">
+      <nav className="max-w-7xl mx-auto px-4 sm:px-6">
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
-          <div className="flex-shrink-0">
-            <Link href="/" className="text-xl font-bold text-white hover:text-orange-100 transition-colors">
-              CCS MemberLink
-            </Link>
-          </div>
+          <Link href="/" className="flex items-center gap-2">
+            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
+              <span className="text-white font-bold text-lg">C</span>
+            </div>
+            <span className="text-xl font-semibold text-gray-900">CCS MemberLink</span>
+          </Link>
 
           {/* Navigation Links */}
           <div className="flex items-center gap-6">
             <Link
               href="/"
-              className="text-white hover:text-orange-100 text-sm font-medium transition-colors"
+              className="text-gray-600 hover:text-orange-600 text-sm font-medium transition-colors"
             >
               Home
             </Link>
             <Link
               href="/about"
-              className="text-white hover:text-orange-100 text-sm font-medium transition-colors"
+              className="text-gray-600 hover:text-orange-600 text-sm font-medium transition-colors"
             >
               About
             </Link>
@@ -50,7 +51,7 @@ export default function Header() {
             {isAuthenticated ? (
               <button
                 onClick={handleLogout}
-                className="bg-white text-orange-600 hover:bg-orange-50 px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
+                className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-9 px-4 bg-orange-600 text-white hover:bg-orange-700"
               >
                 Logout
               </button>
@@ -58,13 +59,13 @@ export default function Header() {
               <>
                 <Link
                   href="/auth/login"
-                  className="text-white hover:text-orange-100 px-4 py-2 rounded-lg text-sm font-semibold border-2 border-white hover:bg-white hover:text-orange-500 transition-colors"
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-9 px-4 border border-gray-300 bg-white hover:bg-gray-50 hover:text-gray-900"
                 >
                   Login
                 </Link>
                 <Link
                   href="/auth/signup"
-                  className="bg-white text-orange-600 hover:bg-orange-50 px-5 py-2 rounded-lg text-sm font-semibold transition-colors"
+                  className="inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-md text-sm font-medium transition-all h-9 px-4 bg-orange-600 text-white hover:bg-orange-700"
                 >
                   Register
                 </Link>

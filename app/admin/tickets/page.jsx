@@ -1,58 +1,93 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { collection, getDocs, query, orderBy, updateDoc, doc } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
+import { useAuth } from '@/contexts/AuthContext'
 
 export default function AdminTickets() {
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(true)
   const [filter, setFilter] = useState('all') // all, pending, resolved
   const [selectedTicket, setSelectedTicket] = useState(null)
+  const [error, setError] = useState('')
+  const { token } = useAuth()
 
   useEffect(() => {
-    fetchTickets()
-  }, [])
+    if (token) {
+      fetchTickets()
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [token])
 
   const fetchTickets = async () => {
+    if (!token) return
     try {
       setLoading(true)
-      const ticketsQuery = query(collection(db, 'tickets'), orderBy('createdAt', 'desc'))
-      const ticketsSnapshot = await getDocs(ticketsQuery)
-      
-      const ticketsData = ticketsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
+      setError('')
+      const response = await fetch('/api/tickets?scope=admin', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}))
+        throw new Error(errorPayload.message || 'Failed to fetch tickets')
+      }
+
+      const payload = await response.json()
+      const ticketsData = (payload.data || []).map(ticket => ({
+        ...ticket,
+        createdAt: ticket.createdAt ? new Date(ticket.createdAt) : null,
+        updatedAt: ticket.updatedAt ? new Date(ticket.updatedAt) : null,
+        resolvedAt: ticket.resolvedAt ? new Date(ticket.resolvedAt) : null,
       }))
-      
+
       setTickets(ticketsData)
     } catch (err) {
       console.error('Error fetching tickets:', err)
+      setError(err.message || 'Unable to load tickets. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   const updateTicketStatus = async (ticketId, status) => {
+    if (!token) {
+      setError('Authentication required. Please log in again.')
+      return
+    }
     try {
-      await updateDoc(doc(db, 'tickets', ticketId), {
-        status,
-        resolvedAt: status === 'resolved' ? new Date() : null,
+      setError('')
+      const response = await fetch(`/api/tickets/${ticketId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ status }),
       })
-      
-      // Update local state
-      setTickets(tickets.map(ticket => 
-        ticket.id === ticketId 
-          ? { ...ticket, status, resolvedAt: status === 'resolved' ? new Date() : null }
-          : ticket
-      ))
-      
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}))
+        throw new Error(errorPayload.message || 'Failed to update ticket status')
+      }
+
+      const payload = await response.json()
+      const updatedTicket = {
+        ...payload.data,
+        createdAt: payload.data?.createdAt ? new Date(payload.data.createdAt) : null,
+        updatedAt: payload.data?.updatedAt ? new Date(payload.data.updatedAt) : null,
+        resolvedAt: payload.data?.resolvedAt ? new Date(payload.data.resolvedAt) : null,
+      }
+
+      setTickets(prev => prev.map(ticket => (ticket.id === ticketId ? updatedTicket : ticket)))
+
       if (selectedTicket?.id === ticketId) {
-        setSelectedTicket({ ...selectedTicket, status })
+        setSelectedTicket(updatedTicket)
       }
     } catch (err) {
       console.error('Error updating ticket:', err)
+      setError('Unable to update ticket status. Please try again.')
     }
   }
 
@@ -107,6 +142,12 @@ export default function AdminTickets() {
           </span>
         </div>
       </div>
+
+      {error && (
+        <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
+          {error}
+        </div>
+      )}
 
       {/* Filter Tabs */}
       <div className="flex gap-2 border-b border-slate-200">

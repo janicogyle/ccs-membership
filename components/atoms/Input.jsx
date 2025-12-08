@@ -4,10 +4,10 @@ export default function Input({
   className = '',
   ...props
 }) {
-  const baseStyles = 'block w-full h-11 px-4 text-base text-slate-900 placeholder:text-slate-400 bg-white border rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-offset-0';
+  const baseStyles = 'block w-full h-12 px-4 text-base text-white placeholder:text-orange-200/40 bg-[#2d1810] border-2 rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-0 disabled:bg-[#1a0f0a] disabled:cursor-not-allowed';
   const errorStyles = error 
-    ? 'border-red-300 focus:border-red-500 focus:ring-red-500/20' 
-    : 'border-slate-300 focus:border-orange-500 focus:ring-orange-500/20';
+    ? 'border-red-400 focus:border-red-500 focus:ring-red-500/20' 
+    : 'border-[#4d2f20] focus:border-[#ff6b35] focus:ring-[#ff6b35]/20 hover:border-[#5d3725]';
   
   return (
     <input

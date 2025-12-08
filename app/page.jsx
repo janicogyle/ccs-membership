@@ -1,138 +1,291 @@
-import { FeatureList } from "@/components/organisms";
-import { Card } from "@/components/molecules";
-import { PageTemplate } from "@/components/templates";
-import { Button } from "@/components/atoms";
+﻿"use client";
+
 import Link from "next/link";
+import { motion } from "framer-motion";
+import {
+  Laptop,
+  Clapperboard,
+  Rocket,
+  CheckCircle2,
+  Clock,
+  Shield,
+  Database,
+  Globe,
+  Users,
+} from "lucide-react";
+
+const organizations = [
+  {
+    icon: Laptop,
+    gradient: "from-blue-500 to-blue-600",
+    title: "ELITES",
+    description:
+      "BSIT Student Council - Leaders in Information Technology, fostering innovation and excellence.",
+  },
+  {
+    icon: Clapperboard,
+    gradient: "from-purple-500 to-purple-600",
+    title: "SPECS",
+    description:
+      "BSCS Organization - Specialists in Computing Sciences, driving research and development.",
+  },
+  {
+    icon: Rocket,
+    gradient: "from-orange-500 to-orange-600",
+    title: "IMAGES",
+    description:
+      "BSEMC Organization - Champions of multimedia storytelling and digital experiences.",
+  },
+  {
+    icon: Users,
+    gradient: "from-emerald-500 to-emerald-600",
+    title: "Student Council",
+    description:
+      "Whole CCS Department - Unified leadership supporting every CCS student community.",
+  },
+];
+
+const benefits = [
+  {
+    icon: CheckCircle2,
+    title: "Eliminates Manual Cash Handling",
+    description: "Digital payments remove the hassle and risks of managing physical cash.",
+    border: "border-l-orange-500",
+    iconBg: "bg-orange-100",
+    iconColor: "text-orange-600",
+  },
+  {
+    icon: Clock,
+    title: "Reduces Waiting Times & Physical Queuing",
+    description: "Process payments instantly from anywhere, eliminating long lines.",
+    border: "border-l-blue-500",
+    iconBg: "bg-blue-100",
+    iconColor: "text-blue-600",
+  },
+  {
+    icon: Shield,
+    title: "Secure & User-Friendly Payment Platform",
+    description: "Bank-level security with an intuitive interface for all users.",
+    border: "border-l-green-500",
+    iconBg: "bg-green-100",
+    iconColor: "text-green-600",
+  },
+  {
+    icon: Database,
+    title: "Automated Record-Keeping & Financial Tracking",
+    description: "Complete transaction history and financial reports at your fingertips.",
+    border: "border-l-purple-500",
+    iconBg: "bg-purple-100",
+    iconColor: "text-purple-600",
+  },
+  {
+    icon: Clock,
+    title: "Real-Time Transaction Monitoring",
+    description: "Track all payments as they happen with instant notifications.",
+    border: "border-l-teal-500",
+    iconBg: "bg-teal-100",
+    iconColor: "text-teal-600",
+  },
+  {
+    icon: Globe,
+    title: "Accessible Anytime, Anywhere",
+    description: "Pay your membership dues 24/7 from any device with internet access.",
+    border: "border-l-pink-500",
+    iconBg: "bg-pink-100",
+    iconColor: "text-pink-600",
+  },
+  {
+    icon: Database,
+    title: "Enhanced Transparency & Accountability",
+    description: "Complete audit trails ensure transparent financial operations.",
+    border: "border-l-indigo-500",
+    iconBg: "bg-indigo-100",
+    iconColor: "text-indigo-600",
+  },
+  {
+    icon: Users,
+    title: "Designed for Every CCS Member",
+    description: "Purpose-built for BSIT, BSCS, BSEMC students and the CCS Student Council.",
+    border: "border-l-amber-500",
+    iconBg: "bg-amber-100",
+    iconColor: "text-amber-600",
+  },
+];
 
 export default function Home() {
-  const features = [
-    "Eliminates Manual Cash Handling",
-    "Reduces Waiting Times & Physical Queuing",
-    "Secure & User-Friendly Payment Platform",
-    "Automated Record-Keeping & Financial Tracking",
-    "Real-Time Transaction Monitoring",
-    "Enhanced Transparency & Accountability",
-    "Accessible Anytime, Anywhere",
-    "Designed for BSIT, BSEMC, and BSCS Students",
-  ];
-
   return (
-    <PageTemplate>
+    <div className="min-h-screen bg-gradient-to-b from-white to-orange-50">
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-orange-50 via-white to-slate-50 overflow-hidden min-h-[calc(100vh-4rem)] flex items-center justify-center">
-        <div className="absolute inset-0 opacity-40">
-          <div className="absolute top-10 right-10 w-72 h-72 bg-orange-200 rounded-full mix-blend-multiply filter blur-xl animate-blob"></div>
-          <div className="absolute top-0 left-10 w-72 h-72 bg-orange-300 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000"></div>
-        </div>
-        <div className="relative max-w-6xl px-6 py-12 md:py-20 w-full flex justify-center">
-          <div className="max-w-4xl text-center w-full">
-            {/* Content */}
-            <div className="space-y-10">
-              <div className="flex justify-center">
-                <span className="inline-flex items-center gap-2 bg-orange-100 text-orange-700 text-xs font-bold px-3 py-1.5 rounded-full">
-                  Gordon College CCS
-                </span>
-              </div>
-              <h1 className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-extrabold leading-[1.1] tracking-tight">
-                <span className="text-slate-900 block mb-2">Student Council &</span>
-                <span className="bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent block mb-2">Organization</span>
-                <span className="text-slate-900 block mb-2">Online Membership</span>
-                <span className="bg-gradient-to-r from-orange-500 to-orange-600 bg-clip-text text-transparent block">Payment System</span>
-              </h1>
-              
-              <div className="flex justify-center">
-                <p className="text-base md:text-lg text-slate-600 leading-relaxed max-w-2xl">
-                  A secure digital platform for BSIT, BSEMC, and BSCS students to conveniently pay membership dues online. Streamlining financial management for ELITES, IMAGES, and SPECS organizations.
-                </p>
-              </div>
-              
-              <div className="flex flex-wrap justify-center gap-4 pt-4">
-                <Link href="/auth/signup">
-                  <button className="px-8 py-4 text-base font-bold text-white bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 rounded-xl shadow-lg hover:shadow-xl transform hover:-translate-y-0.5 transition-all">
-                    Get Started
-                  </button>
-                </Link>
-                <Link href="/auth/login">
-                  <button className="px-8 py-4 text-base font-bold text-orange-600 bg-white border-2 border-orange-500 hover:bg-orange-50 rounded-xl shadow-md hover:shadow-lg transform hover:-translate-y-0.5 transition-all">
-                    Login
-                  </button>
-                </Link>
-              </div>
+      <section className="container mx-auto px-4 py-16 md:py-24">
+        <div className="mx-auto max-w-4xl text-center">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
+            <div className="mb-6 inline-block rounded-full border border-orange-200 bg-orange-100 px-4 py-1.5 text-sm font-medium text-orange-700">
+              Student Council &amp; Organization
             </div>
+            <h1 className="mb-6 text-4xl font-bold leading-tight text-gray-900 md:text-5xl lg:text-6xl">
+              <span className="text-orange-600">Student Council &amp;</span>
+              <br />
+              <span className="text-orange-600">Organization</span>
+              <br />
+              Online Membership
+              <br />
+              <span className="text-orange-600">Payment System</span>
+            </h1>
+          </motion.div>
+
+          <motion.p
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+            className="mx-auto mb-8 max-w-3xl text-lg leading-relaxed text-gray-600 md:text-xl"
+          >
+            A secure, modern digital platform for BSIT, BSCS, and BSEMC students to conveniently pay membership dues
+            online. Streamlining financial management for ELITES, SPECS, IMAGES, and the CCS Student Council.
+          </motion.p>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.4 }}
+            className="flex flex-col items-center justify-center gap-4 sm:flex-row"
+          >
+            <Link
+              href="/auth/signup"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md px-6 text-sm font-medium text-white transition-all bg-orange-600 hover:bg-orange-700"
+            >
+              Get Started
+            </Link>
+            <Link
+              href="/auth/login"
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-md border border-gray-300 bg-white px-6 text-sm font-medium text-gray-900 transition-all hover:bg-gray-50"
+            >
+              Login
+            </Link>
+          </motion.div>
+        </div>
+      </section>
+
+      {/* Community Badge */}
+      <section className="container mx-auto px-4 py-8">
+        <div className="mx-auto max-w-4xl text-center">
+          <div className="inline-block rounded-full bg-orange-600 px-6 py-2 text-sm font-medium text-white hover:bg-orange-700">
+            OUR COMMUNITY
           </div>
         </div>
       </section>
 
-      {/* Organizations Section */}
-      <section className="py-24 bg-white relative flex justify-center">
-        <div className="max-w-6xl px-6 w-full">
-          <div className="text-center mb-16">
-            <span className="text-orange-600 font-semibold tracking-wider uppercase text-sm mb-2 block">Our Community</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">CCS Student Organizations</h2>
-            <div className="flex justify-center">
-              <p className="text-lg text-slate-600 max-w-2xl">
-                Three organizations, one unified system supporting BSIT, BSEMC, and BSCS programs at Gordon College
-              </p>
-            </div>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-10 lg:gap-12">
-            <Card
-              href="/students"
-              title="ELITES"
-              description="BSIT Student Council - Leaders in Information Technology, fostering innovation and excellence."
-            />
-
-            <Card
-              href="/students"
-              title="SPECS"
-              description="BSEMC Organization - Specialists in Entertainment and Multimedia Computing creativity."
-            />
-
-            <Card
-              href="/students"
-              title="IMAGES"
-              description="BSCS Organization - Masters of Computer Science, advancing technology and research."
-            />
-          </div>
-        </div>
-      </section>
-
-      {/* Benefits Section */}
-      <section className="py-24 bg-slate-50 flex justify-center">
-        <div className="max-w-6xl px-6 w-full">
-          <div className="text-center mb-16">
-            <span className="text-orange-600 font-semibold tracking-wider uppercase text-sm mb-2 block">Why Choose Us</span>
-            <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">System Benefits</h2>
-            <div className="flex justify-center">
-              <p className="text-lg text-slate-600 max-w-2xl">
-                Addressing the challenges of manual fee collection through digital transformation
-              </p>
-            </div>
-          </div>
-          <FeatureList features={features} />
-        </div>
-      </section>
-
-      {/* CTA Section */}
-      <section className="relative py-16 md:py-20 bg-gradient-to-r from-orange-500 to-orange-600 overflow-hidden flex justify-center">
-        <div className="absolute inset-0 bg-black/5"></div>
-        <div className="absolute top-0 right-0 w-96 h-96 bg-orange-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
-        <div className="relative max-w-4xl px-6 text-center w-full">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4 md:mb-6">
-            Supporting Gordon College's Digital Transformation
-          </h2>
-          <div className="flex justify-center">
-            <p className="text-base md:text-lg text-orange-50 leading-relaxed mb-6 md:mb-8 max-w-2xl">
-              This system highlights Gordon College's commitment to innovation and digital transformation. By integrating technology into organizational operations, we ensure that CCS student services remain future-ready, sustainable, and accessible.
+      {/* Organizations */}
+      <section className="container mx-auto px-4 py-12">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 text-3xl font-bold text-gray-900 md:text-4xl">CCS Student Organizations</h2>
+            <p className="mx-auto max-w-2xl text-gray-600">
+              Four organizations, one unified system supporting BSIT, BSCS, BSEMC, and the entire CCS department at Gordon College
             </p>
           </div>
-          <Link href="/about">
-            <button className="px-6 md:px-8 py-3 md:py-4 text-base md:text-lg font-bold text-orange-600 bg-white hover:bg-orange-50 rounded-xl shadow-xl hover:shadow-2xl transform hover:-translate-y-0.5 transition-all">
-              Learn More About Our Mission
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+            {organizations.map((org, index) => (
+              <motion.div
+                key={org.title}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: index * 0.1 }}
+              >
+                <div className="rounded-lg border bg-white p-8 transition-all duration-300 hover:shadow-xl border-2 hover:border-orange-200">
+                  <div className={`mb-6 flex h-16 w-16 items-center justify-center rounded-xl bg-gradient-to-br ${org.gradient}`}>
+                    <org.icon className="h-8 w-8 text-white" />
+                  </div>
+                  <h3 className="mb-3 text-2xl font-bold text-gray-900">{org.title}</h3>
+                  <p className="leading-relaxed text-gray-600">{org.description}</p>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+
+          <div className="mt-8 text-center">
+            <button className="inline-flex h-9 items-center justify-center gap-2 rounded-md bg-orange-600 px-4 py-2 text-sm font-medium text-white transition-all hover:bg-orange-700">
+              WHY CHOOSE US
             </button>
-          </Link>
+          </div>
         </div>
       </section>
-    </PageTemplate>
+
+      {/* System Benefits */}
+      <section className="container mx-auto px-4 py-16">
+        <div className="mx-auto max-w-6xl">
+          <div className="mb-12 text-center">
+            <h2 className="mb-4 text-3xl font-bold text-gray-900 md:text-4xl">System Benefits</h2>
+            <p className="mx-auto max-w-2xl text-gray-600">
+              Addressing the challenges of manual fee collection through digital transformation
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2">
+            {benefits.map((benefit, index) => (
+              <motion.div
+                key={benefit.title}
+                initial={{ opacity: 0, x: index % 2 === 0 ? -20 : 20 }}
+                whileInView={{ opacity: 1, x: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.5, delay: Math.floor(index / 2) * 0.1 }}
+              >
+                <div className={`rounded-lg border bg-white p-6 border-l-4 ${benefit.border} transition-shadow hover:shadow-lg`}>
+                  <div className="flex items-start gap-4">
+                    <div className={`flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-lg ${benefit.iconBg}`}>
+                      <benefit.icon className={`h-6 w-6 ${benefit.iconColor}`} />
+                    </div>
+                    <div>
+                      <h3 className="mb-2 text-lg font-bold text-gray-900 md:text-xl">{benefit.title}</h3>
+                      <p className="text-sm text-gray-600 md:text-base">{benefit.description}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Mission Section */}
+      <section className="bg-gradient-to-r from-orange-600 to-orange-700 py-16">
+        <div className="container mx-auto px-4">
+          <div className="mx-auto max-w-4xl text-center">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+            >
+              <h2 className="mb-6 text-3xl font-bold text-white md:text-4xl">
+                Supporting Gordon College&apos;s Digital Transformation
+              </h2>
+              <p className="mb-8 text-lg leading-relaxed text-orange-100 md:text-xl">
+                This system highlights Gordon College&apos;s commitment to innovation and digital transformation. By
+                integrating technology into organizational operations, we ensure that CCS student services remain
+                future-ready, sustainable, and accessible.
+              </p>
+              <Link
+                href="/about"
+                className="inline-flex h-10 items-center justify-center gap-2 rounded-md bg-white px-6 text-sm font-medium text-orange-600 transition-all hover:bg-orange-50"
+              >
+                Learn More About Our Mission
+              </Link>
+            </motion.div>
+          </div>
+        </div>
+      </section>
+
+      {/* Footer */}
+      <footer className="bg-gray-900 py-8 text-white">
+        <div className="container mx-auto px-4">
+          <div className="text-center">
+            <p className="mb-2 text-gray-400">© 2025 CCS MemberLink. All rights reserved.</p>
+            <p className="text-sm text-gray-500">Supporting Gordon College&apos;s Digital Transformation</p>
+          </div>
+        </div>
+      </footer>
+    </div>
   );
 }

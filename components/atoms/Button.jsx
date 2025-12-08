@@ -8,15 +8,15 @@ export default function Button({
   disabled,
   ...props
 }) {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50';
+  const baseStyles = 'inline-flex items-center justify-center font-bold rounded-lg transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 transform hover:-translate-y-0.5 active:translate-y-0';
   
   const variantStyles = {
-    primary: 'bg-orange-500 hover:bg-orange-600 text-white focus:ring-orange-500',
-    secondary: 'bg-slate-600 hover:bg-slate-700 text-white focus:ring-slate-500',
-    danger: 'bg-red-500 hover:bg-red-600 text-white focus:ring-red-500',
-    ghost: 'text-slate-600 hover:text-slate-900 hover:bg-slate-100 focus:ring-slate-500',
-    light: 'bg-white text-orange-600 hover:bg-orange-50 focus:ring-orange-500 border border-slate-300',
-    'outline-white': 'bg-transparent text-white hover:bg-white hover:text-orange-600 focus:ring-white border border-white',
+    primary: 'bg-gradient-to-r from-[#ff6b35] to-[#e85d2c] hover:from-[#e85d2c] hover:to-[#d54d1c] text-white focus:ring-[#ff6b35] shadow-lg hover:shadow-xl',
+    secondary: 'bg-gradient-to-r from-[#4d2f20] to-[#3d2418] hover:from-[#5d3725] hover:to-[#4d2f20] text-white focus:ring-[#4d2f20] shadow-md hover:shadow-lg',
+    danger: 'bg-gradient-to-r from-red-600 to-red-500 hover:from-red-700 hover:to-red-600 text-white focus:ring-red-500 shadow-lg hover:shadow-xl',
+    ghost: 'text-orange-300 hover:text-white hover:bg-[#3d2418] focus:ring-[#ff6b35]',
+    light: 'bg-[#3d2418] text-orange-300 hover:bg-[#4d2f20] focus:ring-[#ff6b35] border-2 border-[#4d2f20] hover:border-[#ff6b35] shadow-md hover:shadow-lg',
+    'outline-white': 'bg-transparent text-white hover:bg-white/10 focus:ring-white border-2 border-white hover:border-white/80',
   };
   
   const sizeStyles = {

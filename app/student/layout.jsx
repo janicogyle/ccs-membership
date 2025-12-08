@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter, usePathname } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
@@ -9,12 +9,17 @@ export default function StudentLayout({ children }) {
   const { user, isAuthenticated, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
       router.push('/auth/login');
     }
   }, [isAuthenticated, router]);
+
+  useEffect(() => {
+    setIsSidebarOpen(false);
+  }, [pathname]);
 
   if (!isAuthenticated) {
     return null;
@@ -76,37 +81,66 @@ export default function StudentLayout({ children }) {
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top Navbar - Full Width */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-between px-8 z-40 shadow-md">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-between px-4 md:px-8 z-40 shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-sm">
-            <span className="text-orange-600 font-bold text-sm">CCS</span>
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-orange-600 shadow-md hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:ring-offset-2 focus:ring-offset-orange-600 lg:hidden"
+            aria-label="Open menu"
+            aria-expanded={isSidebarOpen}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div className="flex w-9 h-9 items-center justify-center rounded-xl bg-white shadow-sm">
+            <span className="text-orange-600 font-black text-sm">CCS</span>
           </div>
-          <span className="text-xl font-bold text-white">CCS MemberLink</span>
+          <span className="text-lg md:text-xl font-black text-white">CCS MemberLink</span>
         </div>
-        <nav className="flex items-center gap-6">
-          <Link href="/" className="text-white hover:text-orange-100 text-sm font-medium transition-colors">Home</Link>
-          <Link href="/about" className="text-white hover:text-orange-100 text-sm font-medium transition-colors">About</Link>
-          <Link href="/contact" className="text-white hover:text-orange-100 text-sm font-medium transition-colors">Contact</Link>
-          <span className="text-white text-sm font-medium border-l border-orange-400 pl-6">{user?.name || 'Student'}</span>
-          <button onClick={handleLogout} className="text-white hover:text-orange-100 text-sm font-medium transition-colors">Logout</button>
+        <nav className="flex items-center gap-4 md:gap-6">
+          <span className="hidden sm:inline text-orange-100 text-sm font-semibold border-l border-orange-400 pl-4 md:pl-6">
+            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
+          </span>
+          <span className="text-white text-sm font-semibold">
+            {user?.name || 'Student'}
+          </span>
         </nav>
       </header>
 
       {/* Sidebar */}
-      <aside className="fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-slate-200 flex flex-col z-30 shadow-sm overflow-y-auto">
+      <aside
+        className={`fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-slate-200 flex flex-col z-40 shadow-lg overflow-y-auto transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div className="px-4 py-3 border-b border-slate-200 flex items-center justify-between lg:hidden">
+          <span className="text-sm font-bold text-slate-900">Navigation</span>
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(false)}
+            className="inline-flex items-center justify-center w-9 h-9 rounded-lg text-slate-500 hover:bg-slate-100 focus:outline-none focus:ring-2 focus:ring-orange-500"
+            aria-label="Close menu"
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
         {/* User Info */}
         <div className="px-4 py-4 border-b border-slate-200 flex-shrink-0">
-          <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl">
-            <div className="w-11 h-11 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-sm">
-              <span className="text-white font-bold text-base">
-                {user?.name?.charAt(0) || 'U'}
+          <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
+            <div className="w-11 h-11 bg-gradient-to-br from-orange-400 to-orange-600 rounded-full flex items-center justify-center flex-shrink-0 shadow-md">
+              <span className="text-white font-black text-base">
+                {user?.name?.charAt(0) || 'S'}
               </span>
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-sm font-semibold text-slate-900 truncate">
+              <p className="text-sm font-bold text-slate-900 truncate">
                 {user?.name || 'Student'}
               </p>
-              <p className="text-xs text-slate-500 truncate">{user?.email}</p>
+              <p className="text-xs text-orange-600 font-bold">Student Member</p>
             </div>
           </div>
         </div>
@@ -120,7 +154,7 @@ export default function StudentLayout({ children }) {
                 key={item.name}
                 href={item.href}
                 className={`
-                  flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all duration-200
+                  flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold transition-all duration-200
                   ${
                     isActive
                       ? 'bg-gradient-to-r from-orange-500 to-orange-600 text-white shadow-md'
@@ -135,26 +169,36 @@ export default function StudentLayout({ children }) {
               </Link>
             );
           })}
-        </nav>
-
-        {/* Logout Button */}
-        <div className="p-4 border-t border-slate-200 flex-shrink-0">
           <button
             onClick={handleLogout}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium text-slate-700 hover:bg-red-50 hover:text-red-600 transition-all duration-200"
+            className="group mt-4 flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm font-bold text-slate-700 transition-all duration-200 hover:bg-red-50 hover:text-red-600"
           >
-            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-            </svg>
+            <span className="text-slate-400 transition-colors group-hover:text-red-600">
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+              </svg>
+            </span>
             Logout
           </button>
-        </div>
+        </nav>
       </aside>
 
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm lg:hidden"
+        />
+      ) : null}
+
       {/* Main Content Area */}
-      <div className="fixed top-16 bottom-0 overflow-y-auto bg-slate-50" style={{left: '264px', right: 0}}>
-        <div className="p-6 md:p-8">
-          {children}
+      <div className="pt-16 lg:pl-64">
+        <div className="min-h-[calc(100vh-4rem)] overflow-y-auto bg-slate-50">
+          <div className="p-6 md:p-8">
+            {children}
+          </div>
         </div>
       </div>
     </div>

@@ -1,6 +1,7 @@
 import { API_ENDPOINTS } from '../constants';
 
 const TOKEN_KEY = 'auth_token';
+const USER_STORAGE_KEY = 'auth_user';
 
 class AuthService {
   storeToken(token) {
@@ -9,15 +10,36 @@ class AuthService {
     }
   }
 
+  storeUser(user) {
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(USER_STORAGE_KEY, JSON.stringify(user));
+    }
+  }
+
   clearToken() {
     if (typeof window !== 'undefined') {
       localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_STORAGE_KEY);
     }
   }
 
   getToken() {
     if (typeof window !== 'undefined') {
       return localStorage.getItem(TOKEN_KEY);
+    }
+    return null;
+  }
+
+  getStoredUser() {
+    if (typeof window !== 'undefined') {
+      const stored = localStorage.getItem(USER_STORAGE_KEY);
+      if (!stored) return null;
+      try {
+        return JSON.parse(stored);
+      } catch (error) {
+        console.warn('Failed to parse stored user', error);
+        localStorage.removeItem(USER_STORAGE_KEY);
+      }
     }
     return null;
   }
@@ -38,6 +60,9 @@ class AuthService {
       
       if (data.success && data.token) {
         this.storeToken(data.token);
+        if (data.user) {
+          this.storeUser(data.user);
+        }
       }
       
       return data;
@@ -59,6 +84,9 @@ class AuthService {
       
       if (data.success && data.token) {
         this.storeToken(data.token);
+        if (data.user) {
+          this.storeUser(data.user);
+        }
       }
       
       return data;

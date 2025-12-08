@@ -45,7 +45,7 @@ export default function LoginForm({ onSubmit, loading: externalLoading, error: e
   };
 
   return (
-    <form className="space-y-6" onSubmit={handleSubmit}>
+    <form className="space-y-8" onSubmit={handleSubmit}>
       <div className="space-y-5">
         <FormField
           id="email"
@@ -56,6 +56,7 @@ export default function LoginForm({ onSubmit, loading: externalLoading, error: e
           required
           disabled={loading}
           placeholder="name@example.com"
+          labelClassName="text-white/80"
         />
         
         <FormField
@@ -67,14 +68,24 @@ export default function LoginForm({ onSubmit, loading: externalLoading, error: e
           required
           disabled={loading}
           placeholder="Enter your password"
+          labelClassName="text-white/80"
         />
       </div>
 
       {error && (
-        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3">
-          <p className="text-sm text-red-700 font-medium">{error}</p>
+        <div className="rounded-lg bg-red-900/20 border border-red-500/30 px-4 py-3">
+          <p className="text-sm text-red-400 font-medium">{error}</p>
         </div>
       )}
+
+      <div className="flex items-center justify-end text-sm">
+        <Link
+          href="/auth/forgot-password"
+          className="font-medium text-orange-300 transition-colors hover:text-orange-200"
+        >
+          Forgot password?
+        </Link>
+      </div>
 
       <Button
         type="submit"
@@ -82,26 +93,18 @@ export default function LoginForm({ onSubmit, loading: externalLoading, error: e
         fullWidth
         loading={loading}
         disabled={loading}
+        className="h-12 text-base"
       >
         {loading ? 'Signing in...' : 'Sign in'}
       </Button>
 
-      <div className="text-center pt-2">
-        <Link
-          href="/auth/forgot-password"
-          className="text-sm font-medium text-orange-600 hover:text-orange-500 transition-colors"
-        >
-          Forgot your password?
-        </Link>
-      </div>
-
-      <p className="text-center text-base text-slate-600 pt-4 border-t border-slate-200">
-        Don&apos;t have an account?{' '}
+      <p className="border-t border-white/10 pt-6 text-center text-base text-white/70">
+        New? Don&apos;t have an account yet?{' '}
         <Link
           href="/auth/signup"
-          className="font-semibold text-orange-600 hover:text-orange-500 transition-colors"
+          className="font-semibold text-orange-200 transition-colors hover:text-white"
         >
-          Sign up
+          Create an account
         </Link>
       </p>
     </form>

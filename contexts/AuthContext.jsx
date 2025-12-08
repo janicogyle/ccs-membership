@@ -12,9 +12,18 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [authReady, setAuthReady] = useState(false);
 
   // Initialize auth state on mount and listen to Firebase auth changes
   useEffect(() => {
+    const storedToken = authService.getToken();
+    const storedUser = authService.getStoredUser();
+
+    if (storedToken && storedUser) {
+      setUser(storedUser);
+      setIsAuthenticated(true);
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
@@ -51,6 +60,7 @@ export function AuthProvider({ children }) {
             console.log('Setting user object:', userObject);
             setUser(userObject);
             setIsAuthenticated(true);
+            authService.storeUser(userObject);
           } else {
             console.log('No Firestore document found, using basic Firebase auth');
             // If no Firestore doc, use basic Firebase auth data
@@ -61,10 +71,17 @@ export function AuthProvider({ children }) {
               isAdmin: false,
             });
             setIsAuthenticated(true);
+            authService.storeUser({
+              uid: firebaseUser.uid,
+              email: firebaseUser.email,
+              name: firebaseUser.displayName,
+              isAdmin: false,
+            });
           }
         } else {
           setUser(null);
           setIsAuthenticated(false);
+          authService.clearToken();
         }
       } catch (error) {
         console.error('Auth state change error:', error);
@@ -72,6 +89,7 @@ export function AuthProvider({ children }) {
         setIsAuthenticated(false);
       } finally {
         setIsLoading(false);
+        setAuthReady(true);
       }
     });
 
@@ -82,26 +100,32 @@ export function AuthProvider({ children }) {
     authService.storeToken(token);
     setUser(userData);
     setIsAuthenticated(true);
+    authService.storeUser(userData);
+    setAuthReady(true);
   };
 
   const logout = () => {
     authService.clearToken();
     setUser(null);
     setIsAuthenticated(false);
+    setAuthReady(true);
   };
 
   const updateUser = (userData) => {
-    setUser({ ...user, ...userData });
+    const updatedUser = { ...user, ...userData };
+    setUser(updatedUser);
+    authService.storeUser(updatedUser);
   };
 
   const value = {
-    user,
-    isAuthenticated,
+    user: authReady ? user : null,
+    isAuthenticated: authReady ? isAuthenticated : Boolean(authService.getToken()),
     isLoading,
     login,
     logout,
     updateUser,
     token: authService.getToken(),
+    authReady,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

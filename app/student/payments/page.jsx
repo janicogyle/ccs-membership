@@ -1,70 +1,86 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function PaymentHistoryPage() {
+  const { user } = useAuth();
   const [filter, setFilter] = useState('all');
+  const [transactions, setTransactions] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const payments = [
-    {
-      id: 'PAY-001',
-      organization: 'ELITES',
-      description: 'Semester Membership Fee',
-      amount: 500,
-      date: '2025-12-07',
-      status: 'completed',
-      method: 'GCash',
-      reference: 'GC-2025120700123',
-    },
-    {
-      id: 'PAY-002',
-      organization: 'SPECS',
-      description: 'Event Registration Fee',
-      amount: 350,
-      date: '2025-12-05',
-      status: 'completed',
-      method: 'PayMaya',
-      reference: 'PM-2025120500456',
-    },
-    {
-      id: 'PAY-003',
-      organization: 'ELITES',
-      description: 'Organization T-shirt',
-      amount: 250,
-      date: '2025-12-01',
-      status: 'pending',
-      method: 'GCash',
-      reference: 'GC-2025120100789',
-    },
-    {
-      id: 'PAY-004',
-      organization: 'IMAGES',
-      description: 'Workshop Fee',
-      amount: 450,
-      date: '2025-11-28',
-      status: 'completed',
-      method: 'Bank Transfer',
-      reference: 'BT-2025112800234',
-    },
-    {
-      id: 'PAY-005',
-      organization: 'ELITES',
-      description: 'Study Materials',
-      amount: 300,
-      date: '2025-11-25',
-      status: 'failed',
-      method: 'GCash',
-      reference: 'GC-2025112500567',
-    },
-  ];
+  useEffect(() => {
+    if (!user?.uid) {
+      setTransactions([]);
+      setLoading(false);
+      return;
+    }
 
-  const filteredPayments = filter === 'all' 
-    ? payments 
-    : payments.filter(p => p.status === filter);
+    setLoading(true);
+    const q = query(
+      collection(db, 'transactions'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    );
 
-  const totalPaid = payments
-    .filter(p => p.status === 'completed')
-    .reduce((sum, p) => sum + p.amount, 0);
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const items = snapshot.docs.map((doc) => {
+          const data = doc.data();
+          const createdAt = data.createdAt?.toDate?.() ?? (data.createdAt ? new Date(data.createdAt) : null);
+          return {
+            id: doc.id,
+            amount: Number(data.amount) || 0,
+            description: data.description || (data.type === 'cash_in' ? 'Wallet cash-in' : 'Membership payment'),
+            organization: data.organizationName || data.subscriptionType || '—',
+            method: data.provider || data.method || (data.type === 'cash_in' ? 'PayMongo' : 'Wallet'),
+            reference: data.checkoutSessionId || data.reference || doc.id,
+            status: data.status || 'completed',
+            type: data.type || 'payment',
+            createdAt,
+          };
+        });
+
+        setTransactions(items);
+        setLoading(false);
+        setError(null);
+      },
+      (snapshotError) => {
+        console.error('Failed to load transactions:', snapshotError);
+        setError('Unable to load your transactions right now.');
+        setLoading(false);
+      }
+    );
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  const filteredTransactions = useMemo(() => {
+    if (filter === 'all') {
+      return transactions;
+    }
+    return transactions.filter((transaction) => transaction.status === filter);
+  }, [filter, transactions]);
+
+  const totalPaid = useMemo(
+    () =>
+      transactions
+        .filter((transaction) => transaction.status === 'completed' && transaction.type !== 'cash_in')
+        .reduce((sum, transaction) => sum + transaction.amount, 0),
+    [transactions]
+  );
+
+  const completedCashIns = useMemo(
+    () =>
+      transactions
+        .filter((transaction) => transaction.status === 'completed' && transaction.type === 'cash_in')
+        .reduce((sum, transaction) => sum + transaction.amount, 0),
+    [transactions]
+  );
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -107,7 +123,7 @@ export default function PaymentHistoryPage() {
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-slate-500">Total Paid</p>
@@ -122,6 +138,18 @@ export default function PaymentHistoryPage() {
 
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-2">
+            <p className="text-sm text-slate-500">Cash-ins (Paid)</p>
+            <div className="w-10 h-10 bg-orange-100 rounded-lg flex items-center justify-center">
+              <svg className="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+          </div>
+          <p className="text-3xl font-bold text-slate-900">₱{completedCashIns.toLocaleString()}</p>
+        </div>
+
+        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-slate-500">Total Transactions</p>
             <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
               <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -129,21 +157,7 @@ export default function PaymentHistoryPage() {
               </svg>
             </div>
           </div>
-          <p className="text-3xl font-bold text-slate-900">{payments.length}</p>
-        </div>
-
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">Pending</p>
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-slate-900">
-            {payments.filter(p => p.status === 'pending').length}
-          </p>
+          <p className="text-3xl font-bold text-slate-900">{transactions.length}</p>
         </div>
       </div>
 
@@ -222,55 +236,75 @@ export default function PaymentHistoryPage() {
                   Status
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-semibold text-slate-500 uppercase tracking-wider">
-                  Actions
+                  Method
                 </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredPayments.map((payment) => (
-                <tr key={payment.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <p className="text-sm font-medium text-slate-900">{payment.id}</p>
-                    <p className="text-xs text-slate-500">{payment.reference}</p>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-medium text-slate-900">{payment.organization}</span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <p className="text-sm text-slate-900">{payment.description}</p>
-                    <p className="text-xs text-slate-500">{payment.method}</p>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm font-semibold text-slate-900">
-                      ₱{payment.amount.toLocaleString()}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span className="text-sm text-slate-600">
-                      {new Date(payment.date).toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <span
-                      className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium ${getStatusColor(
-                        payment.status
-                      )}`}
-                    >
-                      {getStatusIcon(payment.status)}
-                      {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap">
-                    <button className="text-orange-600 hover:text-orange-700 text-sm font-medium">
-                      View
-                    </button>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                    Loading your transactions…
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-red-600">
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredTransactions.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                    No transactions found for the selected filter.
+                  </td>
+                </tr>
+              ) : (
+                filteredTransactions.map((transaction) => (
+                  <tr key={transaction.id} className="transition-colors hover:bg-slate-50">
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <p className="text-sm font-medium text-slate-900">{transaction.id}</p>
+                      <p className="text-xs text-slate-500">{transaction.reference}</p>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-medium text-slate-900">{transaction.organization}</span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <p className="text-sm text-slate-900">{transaction.description}</p>
+                      <p className="text-xs text-slate-500 capitalize">{transaction.type.replace('_', ' ')}</p>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm font-semibold text-slate-900">
+                        ₱{transaction.amount.toLocaleString()}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-sm text-slate-600">
+                        {transaction.createdAt
+                          ? transaction.createdAt.toLocaleDateString('en-US', {
+                              month: 'short',
+                              day: 'numeric',
+                              year: 'numeric',
+                            })
+                          : '—'}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span
+                        className={`inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-medium ${getStatusColor(
+                          transaction.status
+                        )}`}
+                      >
+                        {getStatusIcon(transaction.status)}
+                        {transaction.status.charAt(0).toUpperCase() + transaction.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <span className="text-xs font-medium text-slate-500">{transaction.method}</span>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

@@ -2,11 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { collection, addDoc, query, where, getDocs, orderBy } from 'firebase/firestore'
-import { db } from '@/lib/firebase'
 
 export default function StudentTickets() {
-  const { user } = useAuth()
+  const { user, token } = useAuth()
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -19,27 +17,34 @@ export default function StudentTickets() {
   })
 
   useEffect(() => {
-    if (user?.email) {
+    if (user?.uid && token) {
       fetchMyTickets()
     }
-  }, [user])
+  }, [user?.uid, token])
 
   const fetchMyTickets = async () => {
+    if (!token) return
     try {
       setLoading(true)
-      const ticketsQuery = query(
-        collection(db, 'tickets'),
-        where('email', '==', user.email),
-        orderBy('createdAt', 'desc')
-      )
-      const ticketsSnapshot = await getDocs(ticketsQuery)
-      
-      const ticketsData = ticketsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
+      const response = await fetch('/api/tickets?scope=self', {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      })
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}))
+        throw new Error(errorPayload.message || 'Failed to load tickets')
+      }
+
+      const payload = await response.json()
+      const ticketsData = (payload.data || []).map(ticket => ({
+        ...ticket,
+        createdAt: ticket.createdAt ? new Date(ticket.createdAt) : null,
+        updatedAt: ticket.updatedAt ? new Date(ticket.updatedAt) : null,
+        resolvedAt: ticket.resolvedAt ? new Date(ticket.resolvedAt) : null,
       }))
-      
+
       setTickets(ticketsData)
     } catch (err) {
       console.error('Error fetching tickets:', err)
@@ -63,30 +68,48 @@ export default function StudentTickets() {
     }
 
     try {
+      if (!token) {
+        setError('Authentication required. Please log in again.')
+        return
+      }
       setSubmitting(true)
       setError('')
 
-      await addDoc(collection(db, 'tickets'), {
-        name: user.name || 'Student',
-        email: user.email,
-        phone: user.phoneNumber || '',
-        subject: formData.subject,
-        message: formData.message,
-        status: 'pending',
-        createdAt: new Date(),
+      const response = await fetch('/api/tickets', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          subject: formData.subject,
+          message: formData.message,
+        }),
       })
+
+      if (!response.ok) {
+        const errorPayload = await response.json().catch(() => ({}))
+        throw new Error(errorPayload.message || 'Failed to submit ticket')
+      }
+
+      const payload = await response.json()
+      const createdTicket = {
+        ...payload.data,
+        createdAt: payload.data?.createdAt ? new Date(payload.data.createdAt) : new Date(),
+        updatedAt: payload.data?.updatedAt ? new Date(payload.data.updatedAt) : new Date(),
+        resolvedAt: payload.data?.resolvedAt ? new Date(payload.data.resolvedAt) : null,
+      }
 
       setSuccess(true)
       setFormData({ subject: '', message: '' })
       setShowForm(false)
-      
-      // Refresh tickets list
-      fetchMyTickets()
+
+      setTickets(prev => [createdTicket, ...prev])
       
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
       console.error('Error submitting ticket:', err)
-      setError('Failed to submit ticket. Please try again.')
+      setError(err.message || 'Failed to submit ticket. Please try again.')
     } finally {
       setSubmitting(false)
     }
