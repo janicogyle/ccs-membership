@@ -7,7 +7,7 @@ export const API_ENDPOINTS = {
   STUDENTS_DETAIL: (id) => `/api/students/${id}`,
 };
 
-export const APP_NAME = 'CCS Membership';
+export const APP_NAME = 'CCS Online Payment';
 
 export const MESSAGES = {
   LOGIN_FAILED: 'Login failed. Please check your credentials.',

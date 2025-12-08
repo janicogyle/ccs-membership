@@ -54,11 +54,11 @@ export default function RegisterForm({ onSubmit, loading: externalLoading, error
   };
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-      <div className="space-y-4">
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      <div className="space-y-5">
         <FormField
           id="name"
-          label="Full Name"
+          label="Full name"
           type="text"
           value={name}
           onChange={setName}
@@ -69,13 +69,13 @@ export default function RegisterForm({ onSubmit, loading: externalLoading, error
 
         <FormField
           id="email"
-          label="Email address"
+          label="Email"
           type="email"
           value={email}
           onChange={setEmail}
           required
           disabled={loading}
-          placeholder="john@example.com"
+          placeholder="name@example.com"
         />
         
         <FormField
@@ -86,52 +86,47 @@ export default function RegisterForm({ onSubmit, loading: externalLoading, error
           onChange={setPassword}
           required
           disabled={loading}
-          placeholder="••••••••"
+          placeholder="Create a password"
         />
 
         <FormField
           id="confirmPassword"
-          label="Confirm Password"
+          label="Confirm password"
           type="password"
           value={confirmPassword}
           onChange={setConfirmPassword}
           required
           disabled={loading}
-          placeholder="••••••••"
+          placeholder="Confirm your password"
           error={validationError}
         />
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">{error}</h3>
-            </div>
-          </div>
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+          <p className="text-sm text-red-700 font-medium">{error}</p>
         </div>
       )}
 
-      <div>
-        <Button
-          type="submit"
-          variant="primary"
-          loading={loading}
-          disabled={loading}
-        >
-          {loading ? 'Creating account...' : 'Create account'}
-        </Button>
-      </div>
+      <Button
+        type="submit"
+        variant="primary"
+        fullWidth
+        loading={loading}
+        disabled={loading}
+      >
+        {loading ? 'Creating account...' : 'Create account'}
+      </Button>
 
-      <div className="text-center text-sm">
-        <span className="text-gray-600">Already have an account? </span>
+      <p className="text-center text-base text-slate-600 pt-4 border-t border-slate-200">
+        Already have an account?{' '}
         <Link
           href="/auth/login"
-          className="font-medium text-blue-600 hover:text-blue-500"
+          className="font-semibold text-orange-600 hover:text-orange-500 transition-colors"
         >
           Sign in
         </Link>
-      </div>
+      </p>
     </form>
   );
 }

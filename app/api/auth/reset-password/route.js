@@ -16,7 +16,7 @@ export async function POST(request) {
       )
     }
 
-    const db = getDatabase()
+    const db = await getDatabase()
     const user = await db.collection('users').findOne({ email })
 
     if (!user) {

@@ -13,7 +13,7 @@ export const GET = withAdmin(async (request, admin) => {
     const limit = parseInt(searchParams.get('limit')) || 10
     const skip = (page - 1) * limit
 
-    const db = getDatabase()
+    const db = await getDatabase()
     const users = await db
       .collection('users')
       .find({})
@@ -56,7 +56,7 @@ export const POST = withAdmin(async (request, admin) => {
       )
     }
 
-    const db = getDatabase()
+    const db = await getDatabase()
     const existing = await db.collection('users').findOne({ email })
     if (existing) {
       return Response.json(

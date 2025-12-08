@@ -39,17 +39,17 @@ export default function LoginForm({ onSubmit, loading: externalLoading, error: e
   };
 
   return (
-    <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-      <div className="space-y-4">
+    <form className="space-y-6" onSubmit={handleSubmit}>
+      <div className="space-y-5">
         <FormField
           id="email"
-          label="Email address"
+          label="Email"
           type="email"
           value={email}
           onChange={setEmail}
           required
           disabled={loading}
-          placeholder="Email address"
+          placeholder="name@example.com"
         />
         
         <FormField
@@ -60,40 +60,44 @@ export default function LoginForm({ onSubmit, loading: externalLoading, error: e
           onChange={setPassword}
           required
           disabled={loading}
-          placeholder="Password"
+          placeholder="Enter your password"
         />
       </div>
 
       {error && (
-        <div className="rounded-md bg-red-50 p-4">
-          <div className="flex">
-            <div className="ml-3">
-              <h3 className="text-sm font-medium text-red-800">{error}</h3>
-            </div>
-          </div>
+        <div className="rounded-lg bg-red-50 border border-red-200 px-4 py-3">
+          <p className="text-sm text-red-700 font-medium">{error}</p>
         </div>
       )}
 
-      <div>
-        <Button
-          type="submit"
-          variant="primary"
-          loading={loading}
-          disabled={loading}
+      <Button
+        type="submit"
+        variant="primary"
+        fullWidth
+        loading={loading}
+        disabled={loading}
+      >
+        {loading ? 'Signing in...' : 'Sign in'}
+      </Button>
+
+      <div className="text-center pt-2">
+        <Link
+          href="/auth/forgot-password"
+          className="text-sm font-medium text-orange-600 hover:text-orange-500 transition-colors"
         >
-          {loading ? 'Signing in...' : 'Sign in'}
-        </Button>
+          Forgot your password?
+        </Link>
       </div>
 
-      <div className="text-center text-sm">
-        <span className="text-gray-600">Don't have an account? </span>
+      <p className="text-center text-base text-slate-600 pt-4 border-t border-slate-200">
+        Don&apos;t have an account?{' '}
         <Link
           href="/auth/signup"
-          className="font-medium text-blue-600 hover:text-blue-500"
+          className="font-semibold text-orange-600 hover:text-orange-500 transition-colors"
         >
           Sign up
         </Link>
-      </div>
+      </p>
     </form>
   );
 }

@@ -7,7 +7,7 @@ import { ObjectId } from 'mongodb'
  */
 export const GET = withAdmin(async (request, admin) => {
   try {
-    const db = getDatabase()
+    const db = await getDatabase()
 
     // Get counts
     const totalUsers = await db.collection('users').countDocuments()

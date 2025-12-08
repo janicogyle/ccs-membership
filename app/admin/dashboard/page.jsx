@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { StatCard } from '@/components/molecules'
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000'
 
@@ -41,7 +42,7 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center h-full">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-blue-500"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
       </div>
     )
   }
@@ -60,65 +61,30 @@ export default function AdminDashboard() {
 
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-        {/* Total Users */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium">Total Users</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {stats?.totalUsers || 0}
-              </p>
-            </div>
-            <div className="bg-blue-100 p-3 rounded-lg">
-              <span className="text-2xl">👥</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Total Students */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium">Total Students</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {stats?.totalStudents || 0}
-              </p>
-            </div>
-            <div className="bg-green-100 p-3 rounded-lg">
-              <span className="text-2xl">🎓</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Admins */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium">Admins</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {stats?.totalAdmins || 0}
-              </p>
-            </div>
-            <div className="bg-purple-100 p-3 rounded-lg">
-              <span className="text-2xl">🔐</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Avg GPA */}
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-gray-600 text-sm font-medium">Average GPA</p>
-              <p className="text-3xl font-bold text-gray-900 mt-2">
-                {stats?.gpaStats?.avgGPA?.toFixed(2) || '0.00'}
-              </p>
-            </div>
-            <div className="bg-yellow-100 p-3 rounded-lg">
-              <span className="text-2xl">📊</span>
-            </div>
-          </div>
-        </div>
+        <StatCard
+          title="Total Users"
+          value={stats?.totalUsers || 0}
+          icon="👥"
+          color="blue"
+        />
+        <StatCard
+          title="Total Students"
+          value={stats?.totalStudents || 0}
+          icon="🎓"
+          color="green"
+        />
+        <StatCard
+          title="Admins"
+          value={stats?.totalAdmins || 0}
+          icon="🔐"
+          color="purple"
+        />
+        <StatCard
+          title="Average GPA"
+          value={stats?.gpaStats?.avgGPA?.toFixed(2) || '0.00'}
+          icon="📊"
+          color="yellow"
+        />
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">

@@ -17,7 +17,7 @@ export const GET = withAdmin(async (request, admin, params) => {
       )
     }
 
-    const db = getDatabase()
+    const db = await getDatabase()
     const user = await db
       .collection('users')
       .findOne({ _id: new ObjectId(id) }, { projection: { password: 0 } })
@@ -56,7 +56,7 @@ export const PUT = withAdmin(async (request, admin, params) => {
     const data = await request.json()
     const { name, email, isAdmin: newIsAdmin } = data
 
-    const db = getDatabase()
+    const db = await getDatabase()
 
     // Check if email is being changed to an existing one
     if (email) {
@@ -121,7 +121,7 @@ export const DELETE = withAdmin(async (request, admin, params) => {
       )
     }
 
-    const db = getDatabase()
+    const db = await getDatabase()
     const result = await db
       .collection('users')
       .deleteOne({ _id: new ObjectId(id) })

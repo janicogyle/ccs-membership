@@ -3,12 +3,14 @@ export default function PageTemplate({
   className = '',
 }) {
   return (
-    <div className={`min-h-screen bg-gradient-to-br from-orange-50 to-orange-100 ${className}`}>
-      <div className="max-w-6xl mx-auto p-8">
+    <div className={`min-h-screen bg-white ${className}`}>
+      <div>
         {children}
         
-        <footer className="text-center text-gray-800 pb-8 mt-12">
-          <p>Built with Next.js {new Date().getFullYear()}</p>
+        <footer className="w-full text-center text-slate-600 text-sm py-6 mt-12 border-t border-slate-200 bg-slate-50">
+          <div className="max-w-7xl mx-auto px-6">
+            <p className="font-medium">© {new Date().getFullYear()} CCS MemberLink. All rights reserved.</p>
+          </div>
         </footer>
       </div>
     </div>

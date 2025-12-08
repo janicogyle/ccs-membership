@@ -15,8 +15,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "CCS Membership",
-  description: "CCS Membership Management System",
+  title: "CCS Online Payment - Gordon College",
+  description: "Online Membership Payment System for Gordon College CCS Student Organizations - ELITES, SPECS, and IMAGES",
 };
 
 export default function RootLayout({ children }) {
@@ -28,7 +28,7 @@ export default function RootLayout({ children }) {
         <AuthProvider>
           <ToastProvider>
             <Header />
-            <main>{children}</main>
+            <main className="pt-16">{children}</main>
           </ToastProvider>
         </AuthProvider>
       </body>

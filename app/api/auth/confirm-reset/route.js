@@ -23,7 +23,7 @@ export async function POST(request) {
       )
     }
 
-    const db = getDatabase()
+    const db = await getDatabase()
     const user = await db.collection('users').findOne({
       resetToken: token,
       resetTokenExpires: { $gt: new Date() }

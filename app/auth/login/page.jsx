@@ -15,7 +15,7 @@ export default function LoginPage() {
           Or{' '}
           <a
             href="/auth/signup"
-            className="font-medium text-blue-600 hover:text-blue-500"
+            className="font-medium text-orange-600 hover:text-orange-500 transition-colors"
           >
             create a new account
           </a>

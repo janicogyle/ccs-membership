@@ -2,8 +2,9 @@
 
 import { useState } from 'react';
 import { PageTemplate } from '@/components/templates';
-import { Button, Input, Label, Text } from '@/components/atoms';
-import { FormField } from '@/components/molecules';
+import { HeroSection } from '@/components/organisms';
+import { Card } from '@/components/molecules';
+import { Button, Input, Label } from '@/components/atoms';
 import { MESSAGES } from '@/constants';
 
 export default function ContactPage() {
@@ -34,13 +35,6 @@ export default function ContactPage() {
       // Simulate sending message (in real app, would send to backend)
       await new Promise((resolve) => setTimeout(resolve, 1000));
       
-      // Here you would typically send the form data to your API
-      // const response = await fetch('/api/contact', {
-      //   method: 'POST',
-      //   headers: { 'Content-Type': 'application/json' },
-      //   body: JSON.stringify(formData),
-      // });
-
       setSubmitted(true);
       setFormData({ name: '', email: '', subject: '', message: '' });
       
@@ -54,142 +48,115 @@ export default function ContactPage() {
     }
   };
 
-  const contactInfo = [
-    {
-      icon: '📧',
-      title: 'Email',
-      content: 'contact@ccs-membership.edu',
-    },
-    {
-      icon: '📱',
-      title: 'Phone',
-      content: '+1 (555) 123-4567',
-    },
-    {
-      icon: '📍',
-      title: 'Address',
-      content: '123 Education Street, Learning City, LC 12345',
-    },
-  ];
-
   return (
     <PageTemplate>
-      <div className="max-w-6xl mx-auto px-4 py-12">
-        <div className="text-center mb-12">
-          <h1 className="text-4xl font-bold text-gray-900 mb-2">Contact Us</h1>
-          <p className="text-gray-600 text-lg">
-            We'd love to hear from you. Get in touch with us today.
-          </p>
+      <HeroSection
+        title="Contact Us"
+        subtitle="Have questions? Reach out to ELITES, SPECS, or IMAGES."
+        showLogo={false}
+      />
+
+      <div className="max-w-7xl mx-auto px-6 py-24">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-24">
+          <Card
+            title="Email"
+            description="ccs.payment@gordon.edu.ph"
+            className="text-center"
+          />
+          <Card
+            title="College"
+            description="College of Computer Study - Gordon College"
+            className="text-center"
+          />
+          <Card
+            title="Organizations"
+            description="ELITES (BSIT) • SPECS (BSEMC) • IMAGES (BSCS)"
+            className="text-center"
+          />
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-12">
-          {contactInfo.map((info, index) => (
-            <div
-              key={index}
-              className="bg-blue-50 rounded-lg p-6 border border-blue-200 text-center"
-            >
-              <div className="text-4xl mb-3">{info.icon}</div>
-              <h3 className="font-bold text-gray-900 mb-2">{info.title}</h3>
-              <p className="text-gray-600">{info.content}</p>
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-white rounded-2xl p-8 md:p-10 border border-slate-200 shadow-sm">
+            <div className="text-center mb-10">
+              <h2 className="text-2xl font-bold text-slate-900 mb-2">Send us a Message</h2>
+              <p className="text-slate-600">We'd love to hear from you. Fill out the form below.</p>
             </div>
-          ))}
-        </div>
 
-        <div className="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-8">
-          <h2 className="text-2xl font-bold text-gray-900 mb-6">Send us a Message</h2>
-
-          {submitted && (
-            <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-              <p className="text-green-700 font-medium">
-                ✓ Thank you for your message! We'll get back to you soon.
-              </p>
-            </div>
-          )}
-
-          {error && (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-              <p className="text-red-700">{error}</p>
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <div>
-                <Label htmlFor="name" required>Name</Label>
-                <Input
-                  id="name"
-                  type="text"
-                  name="name"
-                  value={formData.name}
-                  onChange={handleChange}
-                  placeholder="Your name"
-                  required
-                  disabled={loading}
-                />
+            {submitted ? (
+              <div className="bg-green-50 border border-green-200 rounded-xl p-6 text-center">
+                <h3 className="text-lg font-bold text-green-800 mb-2">Message Sent!</h3>
+                <p className="text-green-700">Thank you for reaching out. We'll get back to you shortly.</p>
               </div>
+            ) : (
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {error && (
+                  <div className="bg-red-50 border border-red-200 rounded-lg p-4 text-red-700 text-sm">
+                    {error}
+                  </div>
+                )}
 
-              <div>
-                <Label htmlFor="email" required>Email</Label>
-                <Input
-                  id="email"
-                  type="email"
-                  name="email"
-                  value={formData.email}
-                  onChange={handleChange}
-                  placeholder="your.email@example.com"
-                  required
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <Label htmlFor="name" required>Full Name</Label>
+                    <Input
+                      id="name"
+                      name="name"
+                      value={formData.name}
+                      onChange={handleChange}
+                      required
+                      placeholder="John Doe"
+                    />
+                  </div>
+                  <div>
+                    <Label htmlFor="email" required>Email Address</Label>
+                    <Input
+                      id="email"
+                      name="email"
+                      type="email"
+                      value={formData.email}
+                      onChange={handleChange}
+                      required
+                      placeholder="name@example.com"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <Label htmlFor="subject" required>Subject</Label>
+                  <Input
+                    id="subject"
+                    name="subject"
+                    value={formData.subject}
+                    onChange={handleChange}
+                    required
+                    placeholder="How can we help?"
+                  />
+                </div>
+
+                <div>
+                  <Label htmlFor="message" required>Message</Label>
+                  <textarea
+                    id="message"
+                    name="message"
+                    rows={5}
+                    value={formData.message}
+                    onChange={handleChange}
+                    required
+                    className="block w-full px-4 py-3 text-base text-slate-900 placeholder:text-slate-400 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors resize-none"
+                    placeholder="Write your message here..."
+                  />
+                </div>
+
+                <Button
+                  type="submit"
                   disabled={loading}
-                />
-              </div>
-            </div>
-
-            <div>
-              <Label htmlFor="subject" required>Subject</Label>
-              <Input
-                id="subject"
-                type="text"
-                name="subject"
-                value={formData.subject}
-                onChange={handleChange}
-                placeholder="What is this about?"
-                required
-                disabled={loading}
-              />
-            </div>
-
-            <div>
-              <Label htmlFor="message" required>Message</Label>
-              <textarea
-                id="message"
-                name="message"
-                value={formData.message}
-                onChange={handleChange}
-                placeholder="Please share your message here..."
-                rows="6"
-                required
-                disabled={loading}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent disabled:bg-gray-100 disabled:cursor-not-allowed resize-none"
-              />
-            </div>
-
-            <Button
-              variant="primary"
-              type="submit"
-              loading={loading}
-              disabled={loading}
-              className="w-full"
-            >
-              {loading ? 'Sending...' : 'Send Message'}
-            </Button>
-          </form>
-        </div>
-
-        <div className="mt-12 bg-blue-50 rounded-lg p-8 text-center">
-          <h3 className="text-xl font-bold text-gray-900 mb-2">Office Hours</h3>
-          <p className="text-gray-700">
-            Monday - Friday: 9:00 AM - 5:00 PM<br />
-            Saturday - Sunday: Closed
-          </p>
+                  className="w-full h-12 text-lg font-semibold"
+                >
+                  {loading ? 'Sending...' : 'Send Message'}
+                </Button>
+              </form>
+            )}
+          </div>
         </div>
       </div>
     </PageTemplate>
