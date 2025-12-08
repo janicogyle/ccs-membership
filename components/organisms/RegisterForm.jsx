@@ -10,8 +10,13 @@ import { API_ENDPOINTS, MESSAGES } from '@/constants';
 import authService from '@/services/authService';
 
 export default function RegisterForm({ onSubmit, loading: externalLoading, error: externalError }) {
-  const [name, setName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const [block, setBlock] = useState('');
+  const [program, setProgram] = useState('');
+  const [year, setYear] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(externalLoading || false);
@@ -38,11 +43,20 @@ export default function RegisterForm({ onSubmit, loading: externalLoading, error
     setLoading(true);
 
     try {
-      const result = await authService.register({ name, email, password });
+      const result = await authService.register({ 
+        firstName, 
+        lastName, 
+        email, 
+        phoneNumber,
+        block, 
+        program, 
+        year,
+        password 
+      });
 
       if (result.success) {
         login(result.user, result.token);
-        router.push('/');
+        router.push('/student/dashboard');
       } else {
         setError(result.message || MESSAGES.REGISTER_FAILED);
       }
@@ -56,16 +70,28 @@ export default function RegisterForm({ onSubmit, loading: externalLoading, error
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
       <div className="space-y-5">
-        <FormField
-          id="name"
-          label="Full name"
-          type="text"
-          value={name}
-          onChange={setName}
-          required
-          disabled={loading}
-          placeholder="John Doe"
-        />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            id="firstName"
+            label="First Name"
+            type="text"
+            value={firstName}
+            onChange={setFirstName}
+            required
+            disabled={loading}
+            placeholder="John"
+          />
+          <FormField
+            id="lastName"
+            label="Last Name"
+            type="text"
+            value={lastName}
+            onChange={setLastName}
+            required
+            disabled={loading}
+            placeholder="Doe"
+          />
+        </div>
 
         <FormField
           id="email"
@@ -77,6 +103,50 @@ export default function RegisterForm({ onSubmit, loading: externalLoading, error
           disabled={loading}
           placeholder="name@example.com"
         />
+
+        <FormField
+          id="phoneNumber"
+          label="Phone Number"
+          type="tel"
+          value={phoneNumber}
+          onChange={setPhoneNumber}
+          required
+          disabled={loading}
+          placeholder="09XX XXX XXXX"
+        />
+
+        <div className="grid grid-cols-3 gap-4">
+          <FormField
+            id="program"
+            label="Program"
+            type="text"
+            value={program}
+            onChange={setProgram}
+            required
+            disabled={loading}
+            placeholder="BSIT"
+          />
+          <FormField
+            id="year"
+            label="Year"
+            type="text"
+            value={year}
+            onChange={setYear}
+            required
+            disabled={loading}
+            placeholder="1"
+          />
+          <FormField
+            id="block"
+            label="Block"
+            type="text"
+            value={block}
+            onChange={setBlock}
+            required
+            disabled={loading}
+            placeholder="A"
+          />
+        </div>
         
         <FormField
           id="password"

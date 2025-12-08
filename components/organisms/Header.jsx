@@ -23,8 +23,8 @@ export default function Header({ className = '' }) {
   };
 
   return (
-    <header className={`bg-orange-500 fixed top-0 left-0 right-0 z-50 ${className}`}>
-      <div className="max-w-7xl mx-auto px-6">
+    <header className={`bg-orange-500 fixed top-0 left-0 right-0 z-50 ${className} flex justify-center`}>
+      <div className="max-w-6xl px-6 w-full">
         <nav className="flex justify-between items-center h-16">
           {/* Logo */}
           <Logo size="md" showText={true} />

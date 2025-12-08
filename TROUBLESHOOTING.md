@@ -43,10 +43,31 @@ npm install firebase firebase-admin
      match /databases/{database}/documents {
        match /users/{uid} {
          allow read, write: if request.auth.uid == uid;
+         allow read, write: if request.auth.token.isAdmin == true;
        }
        match /students/{document=**} {
          allow read: if true;
          allow write: if request.auth != null;
+       }
+       match /wallets/{uid} {
+         allow read: if request.auth.uid == uid;
+         allow write: if request.auth.uid == uid;
+         allow read, write: if request.auth.token.isAdmin == true;
+       }
+       match /transactions/{transactionId} {
+         allow read: if request.auth.uid == resource.data.userId;
+         allow create: if request.auth.uid == request.resource.data.userId;
+         allow read, write: if request.auth.token.isAdmin == true;
+       }
+       match /subscriptions/{subscriptionId} {
+         allow read: if request.auth.uid == resource.data.userId;
+         allow create: if request.auth.uid == request.resource.data.userId;
+         allow read, write: if request.auth.token.isAdmin == true;
+       }
+       match /tickets/{ticketId} {
+         allow read: if request.auth != null;
+         allow write: if request.auth != null;
+         allow read, write: if request.auth.token.isAdmin == true;
        }
      }
    }

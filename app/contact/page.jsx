@@ -6,12 +6,14 @@ import { HeroSection } from '@/components/organisms';
 import { Card } from '@/components/molecules';
 import { Button, Input, Label } from '@/components/atoms';
 import { MESSAGES } from '@/constants';
+import { collection, addDoc } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function ContactPage() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    subject: '',
+    phone: '',
     message: '',
   });
   const [loading, setLoading] = useState(false);
@@ -32,11 +34,18 @@ export default function ContactPage() {
     setError(null);
 
     try {
-      // Simulate sending message (in real app, would send to backend)
-      await new Promise((resolve) => setTimeout(resolve, 1000));
+      // Save ticket to Firestore
+      await addDoc(collection(db, 'tickets'), {
+        name: formData.name,
+        email: formData.email,
+        phone: formData.phone,
+        message: formData.message,
+        status: 'pending',
+        createdAt: new Date(),
+      });
       
       setSubmitted(true);
-      setFormData({ name: '', email: '', subject: '', message: '' });
+      setFormData({ name: '', email: '', phone: '', message: '' });
       
       // Reset success message after 3 seconds
       setTimeout(() => setSubmitted(false), 3000);
@@ -56,13 +65,14 @@ export default function ContactPage() {
         showLogo={false}
       />
 
-      <div className="max-w-7xl mx-auto px-6 py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 mb-24">
-          <Card
-            title="Email"
-            description="ccs.payment@gordon.edu.ph"
-            className="text-center"
-          />
+      <div className="flex justify-center">
+        <div className="max-w-6xl px-6 py-24 w-full">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 lg:gap-12 mb-24">
+            <Card
+              title="Email"
+              description="ccs.payment@gordon.edu.ph"
+              className="text-center"
+            />
           <Card
             title="College"
             description="College of Computer Study - Gordon College"
@@ -70,16 +80,18 @@ export default function ContactPage() {
           />
           <Card
             title="Organizations"
-            description="ELITES (BSIT) • SPECS (BSEMC) • IMAGES (BSCS)"
+            description="ELITES (BSIT) • IMAGES (BSEMC) • SPECS (BSCS)"
             className="text-center"
           />
         </div>
 
-        <div className="max-w-3xl mx-auto">
-          <div className="bg-white rounded-2xl p-8 md:p-10 border border-slate-200 shadow-sm">
-            <div className="text-center mb-10">
-              <h2 className="text-2xl font-bold text-slate-900 mb-2">Send us a Message</h2>
-              <p className="text-slate-600">We'd love to hear from you. Fill out the form below.</p>
+        <div className="flex justify-center">
+          <div className="max-w-3xl w-full">
+            <div className="bg-white rounded-3xl p-10 md:p-16 border border-slate-200 shadow-xl shadow-slate-200/50 relative overflow-hidden">
+              <div className="absolute top-0 left-0 w-full h-1.5 bg-gradient-to-r from-orange-400 to-orange-600"></div>
+              <div className="text-center mb-10">
+              <h2 className="text-3xl font-bold text-slate-900 mb-3">Send us a Message</h2>
+              <p className="text-lg text-slate-600">We'd love to hear from you. Fill out the form below.</p>
             </div>
 
             {submitted ? (
@@ -124,14 +136,14 @@ export default function ContactPage() {
                 </div>
 
                 <div>
-                  <Label htmlFor="subject" required className="text-center">Subject</Label>
+                  <Label htmlFor="phone" className="text-center">Phone Number (Optional)</Label>
                   <Input
-                    id="subject"
-                    name="subject"
-                    value={formData.subject}
+                    id="phone"
+                    name="phone"
+                    type="tel"
+                    value={formData.phone}
                     onChange={handleChange}
-                    required
-                    placeholder="How can we help?"
+                    placeholder="09XX XXX XXXX"
                     className="text-center"
                   />
                 </div>
@@ -162,6 +174,8 @@ export default function ContactPage() {
           </div>
         </div>
       </div>
+    </div>
+  </div>
     </PageTemplate>
   );
 }

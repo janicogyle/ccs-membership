@@ -7,9 +7,11 @@ export default function PageTemplate({
       <div>
         {children}
         
-        <footer className="w-full text-center text-slate-600 text-sm py-6 mt-12 border-t border-slate-200 bg-slate-50">
-          <div className="max-w-7xl mx-auto px-6">
-            <p className="font-medium">© {new Date().getFullYear()} CCS MemberLink. All rights reserved.</p>
+        <footer className="w-full text-center text-slate-600 text-sm py-6 mt-12 border-t border-slate-200 bg-slate-50 flex justify-center">
+          <div className="max-w-7xl px-6 w-full">
+            <div className="flex justify-center">
+              <p className="font-medium">© {new Date().getFullYear()} CCS MemberLink. All rights reserved.</p>
+            </div>
           </div>
         </footer>
       </div>

@@ -82,16 +82,44 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Users collection
+    // Users collection - users can read/write their own data, admins can read/write all
     match /users/{uid} {
       allow read, write: if request.auth.uid == uid;
       allow read, write: if request.auth.token.isAdmin == true;
     }
 
-    // Students collection (public read, authenticated write)
+    // Students collection - public read, authenticated write
     match /students/{document=**} {
       allow read: if true;
       allow write: if request.auth != null;
+    }
+
+    // Wallets collection - users can read/write their own wallet, admins can read/write all
+    match /wallets/{uid} {
+      allow read: if request.auth.uid == uid;
+      allow write: if request.auth.uid == uid;
+      allow read, write: if request.auth.token.isAdmin == true;
+    }
+
+    // Transactions collection - users can read their own transactions, create new ones
+    match /transactions/{transactionId} {
+      allow read: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
+      allow read, write: if request.auth.token.isAdmin == true;
+    }
+
+    // Subscriptions collection - users can read their own subscriptions, create new ones
+    match /subscriptions/{subscriptionId} {
+      allow read: if request.auth.uid == resource.data.userId;
+      allow create: if request.auth.uid == request.resource.data.userId;
+      allow read, write: if request.auth.token.isAdmin == true;
+    }
+
+    // Tickets collection
+    match /tickets/{ticketId} {
+      allow read: if request.auth != null;
+      allow write: if request.auth != null;
+      allow read, write: if request.auth.token.isAdmin == true;
     }
   }
 }

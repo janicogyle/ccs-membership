@@ -1,0 +1,37 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Users collection
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if request.auth != null;
+    }
+
+    // Students collection
+    match /students/{document=**} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Wallets collection
+    match /wallets/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read, write: if request.auth != null;
+    }
+
+    // Transactions collection
+    match /transactions/{transactionId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Subscriptions collection
+    match /subscriptions/{subscriptionId} {
+      allow read, write: if request.auth != null;
+    }
+
+    // Tickets collection
+    match /tickets/{ticketId} {
+      allow read, write: if request.auth != null;
+    }
+  }
+}

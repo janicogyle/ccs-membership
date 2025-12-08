@@ -27,7 +27,13 @@ export default function LoginForm({ onSubmit, loading: externalLoading, error: e
 
       if (result.success) {
         login(result.user, result.token);
-        router.push('/');
+        
+        // Redirect based on user role
+        if (result.user.isAdmin) {
+          router.push('/admin/dashboard');
+        } else {
+          router.push('/student/dashboard');
+        }
       } else {
         setError(result.message || MESSAGES.LOGIN_FAILED);
       }

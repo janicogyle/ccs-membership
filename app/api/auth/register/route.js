@@ -3,10 +3,13 @@ import { registerUser } from '@/lib/firebaseAuthService'
 export async function POST(request) {
   try {
     const body = await request.json()
-    const { email, name, password } = body
+    const { email, firstName, lastName, phoneNumber, block, program, year, password } = body
+
+    console.log('Registration request received:', { email, firstName, lastName, phoneNumber, block, program, year });
 
     // Validation
-    if (!email || !name || !password) {
+    if (!email || !firstName || !lastName || !phoneNumber || !block || !program || !year || !password) {
+      console.log('Missing fields:', { email: !!email, firstName: !!firstName, lastName: !!lastName, phoneNumber: !!phoneNumber, block: !!block, program: !!program, year: !!year, password: !!password });
       return new Response(
         JSON.stringify({
           success: false,
@@ -26,7 +29,9 @@ export async function POST(request) {
       )
     }
 
-    const result = await registerUser(email, name, password)
+    console.log('Calling registerUser with:', { email, firstName, lastName, phoneNumber, block, program, year });
+    const result = await registerUser(email, password, { firstName, lastName, phoneNumber, block, program, year })
+    console.log('Registration result:', result);
 
     return new Response(
       JSON.stringify(result),
@@ -44,36 +49,5 @@ export async function POST(request) {
       }),
       { status: 500, headers: { 'Content-Type': 'application/json' } }
     )
-  }
-}
-      updatedAt: new Date(),
-    });
-
-    // Generate JWT token
-    const token = jwt.sign(
-      { userId: result.insertedId, email },
-      JWT_SECRET,
-      { expiresIn: '7d' }
-    );
-
-    return NextResponse.json(
-      {
-        success: true,
-        message: 'Registration successful',
-        user: {
-          _id: result.insertedId.toString(),
-          email,
-          name,
-        },
-        token,
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error('Registration error:', error);
-    return NextResponse.json(
-      { success: false, message: 'Internal server error' },
-      { status: 500 }
-    );
   }
 }
