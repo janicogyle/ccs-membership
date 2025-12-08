@@ -97,7 +97,7 @@ export default function ContactPage() {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div>
-                    <Label htmlFor="name" required>Full Name</Label>
+                    <Label htmlFor="name" required className="text-center">Full Name</Label>
                     <Input
                       id="name"
                       name="name"
@@ -105,10 +105,11 @@ export default function ContactPage() {
                       onChange={handleChange}
                       required
                       placeholder="John Doe"
+                      className="text-center"
                     />
                   </div>
                   <div>
-                    <Label htmlFor="email" required>Email Address</Label>
+                    <Label htmlFor="email" required className="text-center">Email Address</Label>
                     <Input
                       id="email"
                       name="email"
@@ -117,12 +118,13 @@ export default function ContactPage() {
                       onChange={handleChange}
                       required
                       placeholder="name@example.com"
+                      className="text-center"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <Label htmlFor="subject" required>Subject</Label>
+                  <Label htmlFor="subject" required className="text-center">Subject</Label>
                   <Input
                     id="subject"
                     name="subject"
@@ -130,11 +132,12 @@ export default function ContactPage() {
                     onChange={handleChange}
                     required
                     placeholder="How can we help?"
+                    className="text-center"
                   />
                 </div>
 
                 <div>
-                  <Label htmlFor="message" required>Message</Label>
+                  <Label htmlFor="message" required className="text-center">Message</Label>
                   <textarea
                     id="message"
                     name="message"
@@ -142,7 +145,7 @@ export default function ContactPage() {
                     value={formData.message}
                     onChange={handleChange}
                     required
-                    className="block w-full px-4 py-3 text-base text-slate-900 placeholder:text-slate-400 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors resize-none"
+                    className="block w-full px-4 py-3 text-base text-slate-900 placeholder:text-slate-400 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors resize-none text-center"
                     placeholder="Write your message here..."
                   />
                 </div>

@@ -19,12 +19,12 @@ export default function Home() {
   return (
     <PageTemplate>
       {/* Hero Section */}
-      <section className="relative bg-gradient-to-br from-orange-50 via-white to-slate-50 overflow-hidden min-h-[calc(100vh-4rem)] flex items-center">
+      <section className="relative bg-gradient-to-br from-orange-50 via-white to-slate-50 overflow-hidden min-h-[calc(100vh-4rem)] flex items-center justify-center">
         <div className="absolute inset-0 opacity-40">
           <div className="absolute top-10 right-10 w-72 h-72 bg-orange-200 rounded-full mix-blend-multiply filter blur-xl animate-blob"></div>
           <div className="absolute top-0 left-10 w-72 h-72 bg-orange-300 rounded-full mix-blend-multiply filter blur-xl animate-blob animation-delay-2000"></div>
         </div>
-        <div className="relative max-w-7xl mx-auto px-6 py-12 md:py-20">
+        <div className="relative max-w-7xl mx-auto px-6 py-12 md:py-20 w-full">
           <div className="max-w-4xl mx-auto text-center">
             {/* Content */}
             <div className="space-y-8">
@@ -111,11 +111,11 @@ export default function Home() {
       <section className="relative py-16 md:py-20 bg-gradient-to-r from-orange-500 to-orange-600 overflow-hidden">
         <div className="absolute inset-0 bg-black/5"></div>
         <div className="absolute top-0 right-0 w-96 h-96 bg-orange-400 rounded-full mix-blend-multiply filter blur-3xl opacity-30"></div>
-        <div className="relative max-w-5xl mx-auto px-6 text-center">
+        <div className="relative max-w-4xl mx-auto px-6 text-center">
           <h2 className="text-3xl md:text-4xl font-extrabold text-white mb-4 md:mb-6">
             Supporting Gordon College's Digital Transformation
           </h2>
-          <p className="text-base md:text-lg text-orange-50 leading-relaxed mb-6 md:mb-8 max-w-3xl mx-auto">
+          <p className="text-base md:text-lg text-orange-50 leading-relaxed mb-6 md:mb-8 max-w-2xl mx-auto">
             This system highlights Gordon College's commitment to innovation and digital transformation. By integrating technology into organizational operations, we ensure that CCS student services remain future-ready, sustainable, and accessible.
           </p>
           <Link href="/about">

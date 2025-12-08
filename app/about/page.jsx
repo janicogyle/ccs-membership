@@ -25,7 +25,7 @@ export default function AboutPage() {
       <div className="max-w-7xl mx-auto px-6 py-24">
         {/* Mission & Values Grid */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-24">
-          <div className="bg-white rounded-2xl p-8 border border-slate-200 hover:border-orange-500/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300">
+          <div className="bg-white rounded-2xl p-8 border border-slate-200 hover:border-orange-500/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 text-center">
             <h2 className="text-2xl font-bold text-slate-900 mb-4">Our Mission</h2>
             <div className="space-y-4 text-slate-600 leading-relaxed">
               <p>
@@ -37,13 +37,13 @@ export default function AboutPage() {
             </div>
           </div>
 
-          <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200 hover:border-orange-500/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300">
+          <div className="bg-slate-50 rounded-2xl p-8 border border-slate-200 hover:border-orange-500/50 hover:shadow-[0_8px_30px_rgb(0,0,0,0.04)] transition-all duration-300 text-center">
             <h2 className="text-2xl font-bold text-slate-900 mb-4">Our Values</h2>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {values.map((value, index) => (
                 <div
                   key={index}
-                  className="bg-white rounded-xl px-4 py-3 border border-slate-200 text-sm font-medium text-slate-700 flex items-center gap-2"
+                  className="bg-white rounded-xl px-4 py-3 border border-slate-200 text-sm font-medium text-slate-700 flex items-center justify-center gap-2"
                 >
                   {value}
                 </div>

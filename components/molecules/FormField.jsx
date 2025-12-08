@@ -15,7 +15,7 @@ export default function FormField({
 }) {
   return (
     <div>
-      <Label htmlFor={id} required={required}>
+      <Label htmlFor={id} required={required} className="text-center">
         {label}
       </Label>
       <Input
@@ -27,6 +27,7 @@ export default function FormField({
         required={required}
         disabled={disabled}
         placeholder={placeholder}
+        className="text-center"
       />
       {error && (
         <p className="mt-1.5 text-xs text-red-500">{error}</p>

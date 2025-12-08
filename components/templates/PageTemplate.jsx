@@ -3,7 +3,7 @@ export default function PageTemplate({
   className = '',
 }) {
   return (
-    <div className={`min-h-screen bg-white ${className}`}>
+    <div className={`min-h-screen bg-white text-center ${className}`}>
       <div>
         {children}
         

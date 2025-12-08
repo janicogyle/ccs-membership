@@ -53,7 +53,7 @@ export default function ForgotPasswordPage() {
           )}
 
           <div>
-            <label htmlFor="email" className="block text-base font-medium text-slate-700 mb-2">
+            <label htmlFor="email" className="block text-base font-medium text-slate-700 mb-2 text-center">
               Email<span className="text-red-500 ml-1">*</span>
             </label>
             <input
@@ -63,7 +63,7 @@ export default function ForgotPasswordPage() {
               onChange={(e) => setEmail(e.target.value)}
               required
               placeholder="name@example.com"
-              className="block w-full h-11 px-4 text-base text-slate-900 placeholder:text-slate-400 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors"
+              className="block w-full h-11 px-4 text-base text-slate-900 placeholder:text-slate-400 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 transition-colors text-center"
             />
           </div>
 
