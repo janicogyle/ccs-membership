@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { collection, query, getDocs, doc, updateDoc, orderBy, serverTimestamp } from 'firebase/firestore'
+import { db } from '@/lib/firebase'
 
 export default function AdminTickets() {
   const [tickets, setTickets] = useState([])
@@ -9,37 +11,31 @@ export default function AdminTickets() {
   const [filter, setFilter] = useState('all') // all, pending, resolved
   const [selectedTicket, setSelectedTicket] = useState(null)
   const [error, setError] = useState('')
-  const { token } = useAuth()
+  const { user } = useAuth()
 
   useEffect(() => {
-    if (token) {
+    if (user?.uid) {
       fetchTickets()
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [token])
+  }, [user?.uid])
 
   const fetchTickets = async () => {
-    if (!token) return
+    if (!user?.uid) return
     try {
       setLoading(true)
       setError('')
-      const response = await fetch('/api/tickets?scope=admin', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (!response.ok) {
-        const errorPayload = await response.json().catch(() => ({}))
-        throw new Error(errorPayload.message || 'Failed to fetch tickets')
-      }
-
-      const payload = await response.json()
-      const ticketsData = (payload.data || []).map(ticket => ({
-        ...ticket,
-        createdAt: ticket.createdAt ? new Date(ticket.createdAt) : null,
-        updatedAt: ticket.updatedAt ? new Date(ticket.updatedAt) : null,
-        resolvedAt: ticket.resolvedAt ? new Date(ticket.resolvedAt) : null,
+      
+      const ticketsRef = collection(db, 'tickets')
+      const q = query(ticketsRef, orderBy('createdAt', 'desc'))
+      
+      const snapshot = await getDocs(q)
+      const ticketsData = snapshot.docs.map(docSnap => ({
+        id: docSnap.id,
+        ...docSnap.data(),
+        createdAt: docSnap.data().createdAt?.toDate() || null,
+        updatedAt: docSnap.data().updatedAt?.toDate() || null,
+        resolvedAt: docSnap.data().resolvedAt?.toDate() || null,
       }))
 
       setTickets(ticketsData)
@@ -52,32 +48,30 @@ export default function AdminTickets() {
   }
 
   const updateTicketStatus = async (ticketId, status) => {
-    if (!token) {
+    if (!user?.uid) {
       setError('Authentication required. Please log in again.')
       return
     }
     try {
       setError('')
-      const response = await fetch(`/api/tickets/${ticketId}`, {
-        method: 'PATCH',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({ status }),
-      })
-
-      if (!response.ok) {
-        const errorPayload = await response.json().catch(() => ({}))
-        throw new Error(errorPayload.message || 'Failed to update ticket status')
+      
+      const ticketRef = doc(db, 'tickets', ticketId)
+      const updateData = {
+        status,
+        updatedAt: serverTimestamp(),
       }
+      
+      if (status === 'resolved') {
+        updateData.resolvedAt = serverTimestamp()
+      }
+      
+      await updateDoc(ticketRef, updateData)
 
-      const payload = await response.json()
       const updatedTicket = {
-        ...payload.data,
-        createdAt: payload.data?.createdAt ? new Date(payload.data.createdAt) : null,
-        updatedAt: payload.data?.updatedAt ? new Date(payload.data.updatedAt) : null,
-        resolvedAt: payload.data?.resolvedAt ? new Date(payload.data.resolvedAt) : null,
+        ...tickets.find(t => t.id === ticketId),
+        status,
+        updatedAt: new Date(),
+        resolvedAt: status === 'resolved' ? new Date() : null,
       }
 
       setTickets(prev => prev.map(ticket => (ticket.id === ticketId ? updatedTicket : ticket)))

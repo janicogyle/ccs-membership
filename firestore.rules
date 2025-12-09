@@ -1,37 +1,56 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-
-    // Users collection
-    match /users/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-      allow read, write: if request.auth != null;
+    // Allow any authenticated user full access to all collections
+    // This is permissive for development - tighten for production
+    
+    function isSignedIn() {
+      return request.auth != null;
     }
 
-    // Students collection
-    match /students/{document=**} {
-      allow read, write: if request.auth != null;
+    // Users collection
+    match /users/{document=**} {
+      allow read, write: if isSignedIn();
     }
 
     // Wallets collection
-    match /wallets/{uid} {
-      allow read, write: if request.auth != null && request.auth.uid == uid;
-      allow read, write: if request.auth != null;
+    match /wallets/{document=**} {
+      allow read, write: if isSignedIn();
     }
 
     // Transactions collection
-    match /transactions/{transactionId} {
-      allow read, write: if request.auth != null;
+    match /transactions/{document=**} {
+      allow read, write: if isSignedIn();
     }
 
     // Subscriptions collection
-    match /subscriptions/{subscriptionId} {
-      allow read, write: if request.auth != null;
+    match /subscriptions/{document=**} {
+      allow read, write: if isSignedIn();
     }
 
     // Tickets collection
-    match /tickets/{ticketId} {
-      allow read, write: if request.auth != null;
+    match /tickets/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Payments collection (if exists)
+    match /payments/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Members collection (if exists)
+    match /members/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Organizations collection (if exists)
+    match /organizations/{document=**} {
+      allow read, write: if isSignedIn();
+    }
+
+    // Any other collection - catch all
+    match /{collection}/{document=**} {
+      allow read, write: if isSignedIn();
     }
   }
 }

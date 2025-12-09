@@ -16,6 +16,7 @@ import {
   where,
   orderBy,
   limit,
+  getDocs,
 } from 'firebase/firestore';
 
 export default function StudentDashboard() {
@@ -30,13 +31,36 @@ export default function StudentDashboard() {
   const [paymentType, setPaymentType] = useState('organization_full');
   const [processing, setProcessing] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState([]);
+  
+  // Stats from database
+  const [activeSubscriptions, setActiveSubscriptions] = useState([]);
+  const [totalPayments, setTotalPayments] = useState(0);
+  const [transactionCount, setTransactionCount] = useState(0);
 
-  const organizations = [
-    { name: 'Student Council', program: 'CCS Student Government', status: 'Active', color: 'orange' },
-    { name: 'ELITES', program: 'Student Council Extension • BSIT', status: 'Active', color: 'blue' },
-    { name: 'SPECS', program: 'Student Council Extension • BSCS', status: 'Inactive', color: 'purple' },
-    { name: 'IMAGES', program: 'Student Council Extension • BSEMC', status: 'Inactive', color: 'green' },
-  ];
+  // Dynamic organizations based on subscriptions
+  const organizations = useMemo(() => {
+    const orgList = [
+      { id: 'student_council', name: 'Student Council', program: 'CCS Student Government', color: 'orange' },
+      { id: 'elites', name: 'ELITES', program: 'Student Council Extension • BSIT', color: 'blue' },
+      { id: 'specs', name: 'SPECS', program: 'Student Council Extension • BSCS', color: 'purple' },
+      { id: 'images', name: 'IMAGES', program: 'Student Council Extension • BSEMC', color: 'green' },
+    ];
+    
+    return orgList.map(org => {
+      const subscription = activeSubscriptions.find(sub => 
+        sub.organizationId === org.id || 
+        sub.organizationName?.toLowerCase() === org.name.toLowerCase()
+      );
+      
+      return {
+        ...org,
+        status: subscription ? 'Active' : 'Inactive',
+        paymentPlan: subscription?.paymentPlan || null,
+        duration: subscription?.duration || null,
+        expiresAt: subscription?.endDate?.toDate?.() || subscription?.endDate || null,
+      };
+    });
+  }, [activeSubscriptions]);
 
   const organizationOptions = useMemo(
     () => [
@@ -132,6 +156,60 @@ export default function StudentDashboard() {
     }
   }, [user]);
 
+  // Fetch active subscriptions from database
+  useEffect(() => {
+    if (!user?.uid) {
+      setActiveSubscriptions([]);
+      return;
+    }
+
+    const subscriptionsQuery = query(
+      collection(db, 'subscriptions'),
+      where('userId', '==', user.uid),
+      where('status', '==', 'active')
+    );
+
+    const unsubscribe = onSnapshot(subscriptionsQuery, (snapshot) => {
+      const subs = snapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+      setActiveSubscriptions(subs);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // Fetch all transactions for stats
+  useEffect(() => {
+    if (!user?.uid) {
+      setTotalPayments(0);
+      setTransactionCount(0);
+      return;
+    }
+
+    const allTransactionsQuery = query(
+      collection(db, 'transactions'),
+      where('userId', '==', user.uid)
+    );
+
+    const unsubscribe = onSnapshot(allTransactionsQuery, (snapshot) => {
+      let total = 0;
+      snapshot.docs.forEach((doc) => {
+        const data = doc.data();
+        // Only count payments (not cash-ins) for total payments
+        if (data.type !== 'cash_in' && data.status === 'completed') {
+          total += Number(data.amount) || 0;
+        }
+      });
+      setTotalPayments(total);
+      setTransactionCount(snapshot.docs.length);
+    });
+
+    return () => unsubscribe();
+  }, [user?.uid]);
+
+  // Fetch recent transactions (limit 5)
   useEffect(() => {
     if (!user?.uid) {
       setRecentTransactions([]);
@@ -229,41 +307,39 @@ export default function StudentDashboard() {
       return;
     }
 
-    setProcessing(true);
+    if (!user?.uid) {
+      alert('You must be logged in to cash in.');
+      return;
+    }
+
     try {
-      const normalizedAmount = Math.round(amount * 100) / 100;
+      setProcessing(true);
+
+      // Call PayMongo API to create checkout session
       const response = await fetch('/api/paymongo/create-checkout', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ amount: normalizedAmount, userId: user.uid }),
+        body: JSON.stringify({
+          amount: amount,
+          userId: user.uid,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        console.error('PayMongo checkout error:', data);
-        alert(data?.error || 'Failed to initialize PayMongo checkout.');
-        setProcessing(false);
-        return;
+        throw new Error(data.error || 'Failed to create checkout session');
       }
 
-      if (!data.checkoutUrl) {
-        alert(
-          isSimulator
-            ? 'The PayMongo simulator did not return a confirmation link. Please try again.'
-            : 'PayMongo did not return a checkout link. Please try again.'
-        );
-        setProcessing(false);
-        return;
+      // Redirect to PayMongo checkout page
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+      } else {
+        throw new Error('No checkout URL received');
       }
-
-      setCashInAmount('');
-      setProcessing(false);
-      setShowCashIn(false);
-      window.location.href = data.checkoutUrl;
     } catch (error) {
-      console.error('Error creating PayMongo checkout session:', error);
-      alert('Failed to process payment');
+      console.error('Error processing cash-in:', error);
+      alert(error.message || 'Failed to process payment. Please try again.');
       setProcessing(false);
     }
   };
@@ -310,21 +386,26 @@ export default function StudentDashboard() {
         organizationId: selectedOrganizationMeta?.id ?? selectedOrganization,
         organizationName: organizationDisplayName,
         paymentType: paymentType,
-        description: `${organizationDisplayName} - ${selectedPaymentOption?.label ?? 'Membership payment'}`,
+        paymentPlan: isHalf ? 'half' : 'full',
+        duration: isHalf ? '1 Semester' : 'Full Year',
+        description: `${organizationDisplayName} - ${selectedPaymentOption?.label ?? 'Membership payment'} (${isHalf ? '1 Semester' : 'Full Year'})`,
         method: 'Wallet balance',
         amount: paymentAmount,
         status: 'completed',
         createdAt: new Date()
       });
 
+      // Create subscription record
       await addDoc(collection(db, 'subscriptions'), {
         userId: user.uid,
-        userName: user.name,
+        userName: user.name || user.firstName + ' ' + user.lastName || user.email,
         userEmail: user.email,
         organizationId: selectedOrganizationMeta?.id ?? selectedOrganization,
         organizationName: organizationDisplayName,
         type: subscriptionType,
         paymentType: paymentType,
+        paymentPlan: isHalf ? 'half' : 'full',
+        duration: isHalf ? '1 Semester' : 'Full Year',
         amount: paymentAmount,
         status: 'active',
         startDate: new Date(),
@@ -332,9 +413,29 @@ export default function StudentDashboard() {
         createdAt: new Date()
       });
 
+      // Register as member in the members collection
+      await addDoc(collection(db, 'members'), {
+        userId: user.uid,
+        name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email),
+        email: user.email,
+        program: user.program || '',
+        year: user.year || '',
+        block: user.block || '',
+        organizationId: selectedOrganizationMeta?.id ?? selectedOrganization,
+        organizationName: organizationDisplayName,
+        membershipType: subscriptionType,
+        paymentPlan: isHalf ? 'half' : 'full',
+        duration: isHalf ? '1 Semester' : 'Full Year',
+        amountPaid: paymentAmount,
+        status: 'active',
+        memberSince: new Date(),
+        expiresAt: new Date(Date.now() + subscriptionDurationDays * 24 * 60 * 60 * 1000),
+        createdAt: new Date()
+      });
+
       await fetchWalletBalance();
       setShowPayment(false);
-      alert('Payment successful!');
+      alert(`Payment successful! You are now a member of ${organizationDisplayName} (${isHalf ? '1 Semester' : 'Full Year'}).`);
     } catch (error) {
       console.error('Error processing payment:', error);
       alert('Failed to process payment');
@@ -362,45 +463,7 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* Balance Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        {/* Wallet Card - Orange Gradient */}
-        <div className="bg-gradient-to-br from-[#ff6b35] to-[#e85d2c] rounded-2xl p-8 text-white shadow-2xl relative overflow-hidden">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -mr-16 -mt-16"></div>
-          <div className="relative z-10">
-            <p className="text-orange-100 text-sm font-semibold mb-2">E-Wallet Balance</p>
-            <p className="text-5xl font-black mb-6">₱{walletBalance.toFixed(2)}</p>
-            <div className="flex gap-3">
-              <button
-                onClick={() => setShowCashIn(true)}
-                className="px-6 py-2.5 bg-white text-[#ff6b35] rounded-lg font-bold text-sm hover:bg-orange-50 transition-all shadow-lg"
-              >
-                Cash In
-              </button>
-              <button
-                onClick={() => setShowPayment(true)}
-                className="px-6 py-2.5 bg-white/20 text-white rounded-lg font-bold text-sm hover:bg-white/30 transition-all backdrop-blur-sm"
-              >
-                Make Payment
-              </button>
-            </div>
-          </div>
-        </div>
-
-        {/* Cash Card - Red/Orange Gradient */}
-        <div className="bg-gradient-to-br from-[#ff8c5a] to-[#ff6b35] rounded-2xl p-8 text-white shadow-2xl relative overflow-hidden">
-          <div className="absolute bottom-0 left-0 w-32 h-32 bg-white/10 rounded-full -ml-16 -mb-16"></div>
-          <div className="relative z-10">
-            <p className="text-orange-100 text-sm font-semibold mb-2">Cash On Hand</p>
-            <p className="text-5xl font-black mb-6">₱CASH 0</p>
-            <div className="flex gap-3">
-              <button className="px-6 py-2.5 bg-white text-[#ff6b35] rounded-lg font-bold text-sm hover:bg-orange-50 transition-all shadow-lg">
-                Manage
-              </button>
-            </div>
-          </div>
-        </div>
-      </div>
+      {/* (Removed old dual balance cards section) */}
 
       {/* Wallet Balance Card */}
       <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-2xl p-8 text-white shadow-xl">
@@ -420,7 +483,7 @@ export default function StudentDashboard() {
             onClick={() => setShowCashIn(true)}
             className="flex-1 bg-white text-orange-600 px-6 py-3 rounded-xl font-semibold hover:bg-orange-50 transition-colors"
           >
-            Cash In via PayMongo
+            Cash In (Simulated)
           </button>
           <button
             onClick={() => setShowPayment(true)}
@@ -439,7 +502,7 @@ export default function StudentDashboard() {
         >
           <div className="bg-white rounded-2xl max-w-md w-full p-6 shadow-2xl" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-4">
-              <h3 className="text-2xl font-bold text-slate-900">Cash In via PayMongo</h3>
+              <h3 className="text-2xl font-bold text-slate-900">Cash In (Simulation)</h3>
               <button onClick={() => setShowCashIn(false)} className="p-2 bg-red-500 hover:bg-red-600 rounded-lg transition-colors">
                 <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
@@ -459,9 +522,9 @@ export default function StudentDashboard() {
               />
             </div>
 
-            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6">
-              <p className="text-sm text-blue-800">
-                <span className="font-semibold">Secure Payment:</span> You'll be redirected to PayMongo's secure payment page to complete your transaction.
+            <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 mb-6">
+              <p className="text-sm text-amber-800">
+                <span className="font-semibold">🧪 Simulation Mode:</span> This will instantly add funds to your wallet for testing. No real payment is processed.
               </p>
             </div>
 
@@ -470,13 +533,7 @@ export default function StudentDashboard() {
               disabled={processing}
               className="w-full px-6 py-3 bg-orange-600 text-white rounded-xl font-semibold hover:bg-orange-700 transition-colors disabled:opacity-50"
             >
-              {processing
-                ? isSimulator
-                  ? 'Completing simulated payment...'
-                  : 'Redirecting to PayMongo...'
-                : isSimulator
-                ? 'Simulate PayMongo Payment'
-                : 'Proceed to PayMongo'}
+              {processing ? 'Processing...' : 'Simulate Cash In'}
             </button>
           </div>
         </div>
@@ -615,12 +672,12 @@ export default function StudentDashboard() {
 
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        {/* Card 1 - Orange */}
+        {/* Card 1 - Orange - Active Subscriptions */}
         <div className="bg-white p-6 rounded-2xl border-l-4 border-orange-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-slate-600 text-sm mb-2">Active Organizations</p>
-              <h3 className="text-3xl font-black text-slate-900">3</h3>
+              <p className="text-slate-600 text-sm mb-2">Active Memberships</p>
+              <h3 className="text-3xl font-black text-slate-900">{activeSubscriptions.length}</h3>
             </div>
             <div className="w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -630,12 +687,12 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Card 2 - Blue */}
+        {/* Card 2 - Blue - Total Payments */}
         <div className="bg-white p-6 rounded-2xl border-l-4 border-blue-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-slate-600 text-sm mb-2">Total Payments</p>
-              <h3 className="text-3xl font-black text-slate-900">₱850</h3>
+              <h3 className="text-3xl font-black text-slate-900">₱{totalPayments.toFixed(0)}</h3>
             </div>
             <div className="w-12 h-12 bg-blue-100 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -645,12 +702,14 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Card 3 - Green */}
+        {/* Card 3 - Green - Membership Status */}
         <div className="bg-white p-6 rounded-2xl border-l-4 border-green-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-slate-600 text-sm mb-2">Membership Status</p>
-              <h3 className="text-3xl font-black text-green-600">Active</h3>
+              <h3 className={`text-3xl font-black ${activeSubscriptions.length > 0 ? 'text-green-600' : 'text-slate-400'}`}>
+                {activeSubscriptions.length > 0 ? 'Active' : 'Inactive'}
+              </h3>
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -660,12 +719,12 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Card 4 - Purple */}
+        {/* Card 4 - Purple - Transaction Count */}
         <div className="bg-white p-6 rounded-2xl border-l-4 border-purple-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-start justify-between">
             <div>
-              <p className="text-slate-600 text-sm mb-2">Recent Transactions</p>
-              <h3 className="text-3xl font-black text-slate-900">12</h3>
+              <p className="text-slate-600 text-sm mb-2">Total Transactions</p>
+              <h3 className="text-3xl font-black text-slate-900">{transactionCount}</h3>
             </div>
             <div className="w-12 h-12 bg-purple-100 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -710,16 +769,28 @@ export default function StudentDashboard() {
                     <div>
                       <p className="font-bold text-slate-900 text-lg">{org.name}</p>
                       <p className="text-sm text-slate-500">{org.program}</p>
+                      {org.status === 'Active' && org.duration && (
+                        <p className="text-xs text-green-600 font-medium mt-1">
+                          {org.duration} {org.paymentPlan === 'half' && '(Half Payment)'}
+                        </p>
+                      )}
                     </div>
                   </div>
-                  <span
-                    className={`
-                      px-4 py-2 rounded-lg text-xs font-bold
-                      ${org.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}
-                    `}
-                  >
-                    {org.status}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span
+                      className={`
+                        px-4 py-2 rounded-lg text-xs font-bold
+                        ${org.status === 'Active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-500'}
+                      `}
+                    >
+                      {org.status}
+                    </span>
+                    {org.status === 'Active' && org.paymentPlan && (
+                      <span className={`text-xs font-medium ${org.paymentPlan === 'full' ? 'text-blue-600' : 'text-orange-600'}`}>
+                        {org.paymentPlan === 'full' ? '₱60 Full Year' : '₱30 1 Semester'}
+                      </span>
+                    )}
+                  </div>
                 </div>
               );
             })}

@@ -8,22 +8,31 @@ import { doc, getDoc } from 'firebase/firestore';
 
 const AuthContext = createContext();
 
+// Helper to get initial state from localStorage (runs immediately)
+const getInitialAuthState = () => {
+  if (typeof window === 'undefined') return { user: null, isAuthenticated: false };
+  
+  try {
+    const storedUser = localStorage.getItem('user');
+    const storedToken = localStorage.getItem('token');
+    if (storedUser && storedToken) {
+      return { user: JSON.parse(storedUser), isAuthenticated: true };
+    }
+  } catch (e) {
+    console.error('Error reading auth from localStorage:', e);
+  }
+  return { user: null, isAuthenticated: false };
+};
+
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(null);
+  // Initialize with localStorage values immediately to prevent flash redirects
+  const [user, setUser] = useState(() => getInitialAuthState().user);
+  const [isAuthenticated, setIsAuthenticated] = useState(() => getInitialAuthState().isAuthenticated);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [authReady, setAuthReady] = useState(false);
 
   // Initialize auth state on mount and listen to Firebase auth changes
   useEffect(() => {
-    const storedToken = authService.getToken();
-    const storedUser = authService.getStoredUser();
-
-    if (storedToken && storedUser) {
-      setUser(storedUser);
-      setIsAuthenticated(true);
-    }
-
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       try {
         if (firebaseUser) {
@@ -64,29 +73,25 @@ export function AuthProvider({ children }) {
           } else {
             console.log('No Firestore document found, using basic Firebase auth');
             // If no Firestore doc, use basic Firebase auth data
-            setUser({
+            const basicUser = {
               uid: firebaseUser.uid,
               email: firebaseUser.email,
               name: firebaseUser.displayName,
               isAdmin: false,
-            });
+            };
+            setUser(basicUser);
             setIsAuthenticated(true);
-            authService.storeUser({
-              uid: firebaseUser.uid,
-              email: firebaseUser.email,
-              name: firebaseUser.displayName,
-              isAdmin: false,
-            });
+            authService.storeUser(basicUser);
           }
         } else {
+          // Only clear if Firebase confirms no user
           setUser(null);
           setIsAuthenticated(false);
           authService.clearToken();
         }
       } catch (error) {
         console.error('Auth state change error:', error);
-        setUser(null);
-        setIsAuthenticated(false);
+        // Don't clear auth on error - keep localStorage state
       } finally {
         setIsLoading(false);
         setAuthReady(true);

@@ -76,68 +76,109 @@ export default function AdminMembersPage() {
     try {
       const currentTab = tabs.find(t => t.id === activeTab);
       
+      // First, try to fetch from members collection
+      let membersQuery;
       if (activeTab === 'council') {
-        // Fetch council members from subscriptions
-        const subscriptionsQuery = query(
-          collection(db, 'subscriptions'),
-          where('type', '==', 'council'),
-          where('status', '==', 'active')
+        membersQuery = query(
+          collection(db, 'members'),
+          where('organizationId', '==', 'student_council')
         );
-        const subscriptionsSnapshot = await getDocs(subscriptionsQuery);
-        
-        // Get unique user IDs
-        const userIds = [...new Set(subscriptionsSnapshot.docs.map(doc => doc.data().userId))];
-        
-        // Fetch user details for each council member
-        const membersData = [];
-        for (const userId of userIds) {
-          const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', userId)));
-          if (!userDoc.empty) {
-            const userData = userDoc.docs[0].data();
-            const subscription = subscriptionsSnapshot.docs.find(doc => doc.data().userId === userId)?.data();
-            membersData.push({
-              id: userId,
-              ...userData,
-              subscriptionStatus: subscription?.status || 'inactive',
-              subscriptionType: subscription?.paymentType || 'N/A',
-              joinedDate: subscription?.createdAt?.toDate() || null,
-            });
-          }
-        }
+      } else {
+        membersQuery = query(
+          collection(db, 'members'),
+          where('organizationId', '==', activeTab)
+        );
+      }
+      
+      const membersSnapshot = await getDocs(membersQuery);
+      
+      if (!membersSnapshot.empty) {
+        // Use members collection data
+        const membersData = membersSnapshot.docs.map(doc => {
+          const data = doc.data();
+          return {
+            id: data.userId,
+            ...data,
+            subscriptionStatus: data.status || 'active',
+            subscriptionType: data.paymentPlan || 'N/A',
+            paymentPlan: data.paymentPlan,
+            semesterType: data.semesterType,
+            semesterLabel: data.semesterLabel,
+            joinedDate: data.joinedAt?.toDate() || data.createdAt?.toDate() || null,
+          };
+        });
         setMembers(membersData);
       } else {
-        // Fetch organization members by program
-        const usersQuery = query(
-          collection(db, 'users'),
-          where('program', '==', currentTab.program)
-        );
-        const usersSnapshot = await getDocs(usersQuery);
-        
-        const membersData = [];
-        for (const doc of usersSnapshot.docs) {
-          const userData = doc.data();
-          
-          // Check if user has active subscription
+        // Fallback to subscriptions
+        if (activeTab === 'council') {
+          // Fetch council members from subscriptions
           const subscriptionsQuery = query(
             collection(db, 'subscriptions'),
-            where('userId', '==', userData.uid),
-            where('type', '==', 'organization'),
+            where('type', '==', 'council'),
             where('status', '==', 'active')
           );
           const subscriptionsSnapshot = await getDocs(subscriptionsQuery);
           
-          const hasActiveSubscription = !subscriptionsSnapshot.empty;
-          const subscription = subscriptionsSnapshot.docs[0]?.data();
+          // Get unique user IDs
+          const userIds = [...new Set(subscriptionsSnapshot.docs.map(doc => doc.data().userId))];
           
-          membersData.push({
-            id: userData.uid,
-            ...userData,
-            subscriptionStatus: hasActiveSubscription ? 'active' : 'inactive',
-            subscriptionType: subscription?.paymentType || 'N/A',
-            joinedDate: subscription?.createdAt?.toDate() || userData.createdAt?.toDate(),
-          });
+          // Fetch user details for each council member
+          const membersData = [];
+          for (const userId of userIds) {
+            const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', userId)));
+            if (!userDoc.empty) {
+              const userData = userDoc.docs[0].data();
+              const subscription = subscriptionsSnapshot.docs.find(doc => doc.data().userId === userId)?.data();
+              membersData.push({
+                id: userId,
+                ...userData,
+                subscriptionStatus: subscription?.status || 'inactive',
+                subscriptionType: subscription?.paymentType || 'N/A',
+                paymentPlan: subscription?.paymentPlan,
+                semesterType: subscription?.semesterType,
+                semesterLabel: subscription?.semesterLabel,
+                joinedDate: subscription?.createdAt?.toDate() || null,
+              });
+            }
+          }
+          setMembers(membersData);
+        } else {
+          // Fetch organization members by program
+          const usersQuery = query(
+            collection(db, 'users'),
+            where('program', '==', currentTab.program)
+          );
+          const usersSnapshot = await getDocs(usersQuery);
+          
+          const membersData = [];
+          for (const doc of usersSnapshot.docs) {
+            const userData = doc.data();
+            
+            // Check if user has active subscription
+            const subscriptionsQuery = query(
+              collection(db, 'subscriptions'),
+              where('userId', '==', userData.uid),
+              where('type', '==', 'organization'),
+              where('status', '==', 'active')
+            );
+            const subscriptionsSnapshot = await getDocs(subscriptionsQuery);
+            
+            const hasActiveSubscription = !subscriptionsSnapshot.empty;
+            const subscription = subscriptionsSnapshot.docs[0]?.data();
+            
+            membersData.push({
+              id: userData.uid,
+              ...userData,
+              subscriptionStatus: hasActiveSubscription ? 'active' : 'inactive',
+              subscriptionType: subscription?.paymentType || 'N/A',
+              paymentPlan: subscription?.paymentPlan,
+              semesterType: subscription?.semesterType,
+              semesterLabel: subscription?.semesterLabel,
+              joinedDate: subscription?.createdAt?.toDate() || userData.createdAt?.toDate(),
+            });
+          }
+          setMembers(membersData);
         }
-        setMembers(membersData);
       }
     } catch (error) {
       console.error('Error fetching members:', error);
@@ -318,6 +359,7 @@ export default function AdminMembersPage() {
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Student ID</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Program</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Year Level</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Payment Plan</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Join Date</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Status</th>
                   <th className="px-6 py-3 text-left text-xs font-medium text-slate-500 uppercase tracking-wider">Actions</th>
@@ -344,6 +386,19 @@ export default function AdminMembersPage() {
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{member.studentId || 'N/A'}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{member.program}</td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">{member.year ? `${member.year}${getOrdinalSuffix(member.year)} Year` : 'N/A'}</td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      {member.paymentPlan ? (
+                        <span className={`px-3 py-1 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                          member.paymentPlan === 'full'
+                            ? 'bg-blue-100 text-blue-800'
+                            : 'bg-orange-100 text-orange-800'
+                        }`}>
+                          {member.paymentPlan === 'full' ? '₱60 Full Year' : '₱30 1 Semester'}
+                        </span>
+                      ) : (
+                        <span className="text-sm text-slate-400">N/A</span>
+                      )}
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-slate-600">
                       {member.joinedDate ? new Date(member.joinedDate).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }) : 'N/A'}
                     </td>

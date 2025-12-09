@@ -6,23 +6,66 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function StudentLayout({ children }) {
-  const { user, isAuthenticated, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [currentDateTime, setCurrentDateTime] = useState('');
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      router.push('/auth/login');
+    // Set initial date/time on client side only
+    const updateDateTime = () => {
+      const date = new Date();
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+      const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+      setCurrentDateTime(`${dateStr} • ${timeStr}`);
+    };
+    
+    updateDateTime();
+    const interval = setInterval(updateDateTime, 60000); // Update every minute
+    
+    return () => clearInterval(interval);
+  }, []);
+
+  useEffect(() => {
+    // Only redirect after auth is fully loaded AND confirmed no user
+    if (!isLoading && !isAuthenticated && !user) {
+      // Add a small delay to ensure localStorage has been checked
+      const timer = setTimeout(() => {
+        if (!isAuthenticated && !user) {
+          router.push('/auth/login');
+        }
+      }, 100);
+      return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, router]);
+  }, [isAuthenticated, user, isLoading, router]);
 
   useEffect(() => {
     setIsSidebarOpen(false);
   }, [pathname]);
 
-  if (!isAuthenticated) {
-    return null;
+  // Show loading while auth state is being determined
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Loading...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // If we have a user from localStorage, show content even if Firebase is still confirming
+  if (!isAuthenticated && !user) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-slate-100">
+        <div className="text-center">
+          <div className="w-8 h-8 border-4 border-orange-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+          <p className="text-slate-600">Checking authentication...</p>
+        </div>
+      </div>
+    );
   }
 
   const navigation = [
@@ -100,9 +143,11 @@ export default function StudentLayout({ children }) {
           <span className="text-lg md:text-xl font-black text-white">CCS MemberLink</span>
         </div>
         <nav className="flex items-center gap-4 md:gap-6">
-          <span className="hidden sm:inline text-orange-100 text-sm font-semibold border-l border-orange-400 pl-4 md:pl-6">
-            {new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })} • {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-          </span>
+          {currentDateTime && (
+            <span className="hidden sm:inline text-orange-100 text-sm font-semibold border-l border-orange-400 pl-4 md:pl-6">
+              {currentDateTime}
+            </span>
+          )}
           <span className="text-white text-sm font-semibold">
             {user?.name || 'Student'}
           </span>

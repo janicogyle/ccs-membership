@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, getDocs, orderBy } from 'firebase/firestore'
+import { doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 export default function StudentWallet() {
@@ -20,9 +20,35 @@ export default function StudentWallet() {
   useEffect(() => {
     if (user?.uid) {
       fetchWallet()
-      fetchTransactions()
     }
   }, [user])
+
+  // Real-time transactions listener
+  useEffect(() => {
+    if (!user?.uid) {
+      setTransactions([])
+      return
+    }
+
+    const transactionsQuery = query(
+      collection(db, 'transactions'),
+      where('userId', '==', user.uid),
+      orderBy('createdAt', 'desc')
+    )
+
+    const unsubscribe = onSnapshot(transactionsQuery, (snapshot) => {
+      const transactionsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate?.() || new Date(doc.data().createdAt),
+      }))
+      setTransactions(transactionsData)
+    }, (err) => {
+      console.error('Error fetching transactions:', err)
+    })
+
+    return () => unsubscribe()
+  }, [user?.uid])
 
   const fetchWallet = async () => {
     try {
@@ -44,25 +70,6 @@ export default function StudentWallet() {
     }
   }
 
-  const fetchTransactions = async () => {
-    try {
-      const transactionsQuery = query(
-        collection(db, 'transactions'),
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      )
-      const transactionsSnapshot = await getDocs(transactionsQuery)
-      const transactionsData = transactionsSnapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate(),
-      }))
-      setTransactions(transactionsData)
-    } catch (err) {
-      console.error('Error fetching transactions:', err)
-    }
-  }
-
   const handleCashIn = async () => {
     const amount = parseFloat(cashInAmount)
     
@@ -76,42 +83,40 @@ export default function StudentWallet() {
       return
     }
 
+    if (!user?.uid) {
+      setError('You must be logged in to cash in.')
+      return
+    }
+
     try {
       setProcessing(true)
       setError('')
 
-      // In production, integrate with PayMongo API here
-      // For now, simulate payment
-      await new Promise(resolve => setTimeout(resolve, 2000))
-
-      // Update wallet balance
-      const newBalance = walletBalance + amount
-      await updateDoc(doc(db, 'wallets', user.uid), {
-        balance: newBalance,
-        updatedAt: new Date(),
+      // Call PayMongo API to create checkout session
+      const response = await fetch('/api/paymongo/create-checkout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          amount: amount,
+          userId: user.uid,
+        }),
       })
 
-      // Record transaction
-      await addDoc(collection(db, 'transactions'), {
-        userId: user.uid,
-        type: 'cash_in',
-        amount: amount,
-        status: 'completed',
-        method: 'paymongo',
-        createdAt: new Date(),
-      })
+      const data = await response.json()
 
-      setWalletBalance(newBalance)
-      setSuccess(`Successfully added ₱${amount.toFixed(2)} to your wallet!`)
-      setCashInAmount('')
-      setShowCashIn(false)
-      fetchTransactions()
-      
-      setTimeout(() => setSuccess(''), 3000)
+      if (!response.ok) {
+        throw new Error(data.error || 'Failed to create checkout session')
+      }
+
+      // Redirect to PayMongo checkout page
+      if (data.checkoutUrl) {
+        window.location.href = data.checkoutUrl
+      } else {
+        throw new Error('No checkout URL received')
+      }
     } catch (err) {
       console.error('Error processing cash-in:', err)
-      setError('Failed to process payment. Please try again.')
-    } finally {
+      setError(err.message || 'Failed to process payment. Please try again.')
       setProcessing(false)
     }
   }

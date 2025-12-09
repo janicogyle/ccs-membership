@@ -2,9 +2,11 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
+import { collection, query, where, getDocs, addDoc, orderBy, serverTimestamp } from 'firebase/firestore'
+import { db, auth } from '@/lib/firebase'
 
 export default function StudentTickets() {
-  const { user, token } = useAuth()
+  const { user } = useAuth()
   const [tickets, setTickets] = useState([])
   const [loading, setLoading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
@@ -17,32 +19,29 @@ export default function StudentTickets() {
   })
 
   useEffect(() => {
-    if (user?.uid && token) {
+    if (user?.uid) {
       fetchMyTickets()
     }
-  }, [user?.uid, token])
+  }, [user?.uid])
 
   const fetchMyTickets = async () => {
-    if (!token) return
+    if (!user?.uid) return
     try {
       setLoading(true)
-      const response = await fetch('/api/tickets?scope=self', {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      })
-
-      if (!response.ok) {
-        const errorPayload = await response.json().catch(() => ({}))
-        throw new Error(errorPayload.message || 'Failed to load tickets')
-      }
-
-      const payload = await response.json()
-      const ticketsData = (payload.data || []).map(ticket => ({
-        ...ticket,
-        createdAt: ticket.createdAt ? new Date(ticket.createdAt) : null,
-        updatedAt: ticket.updatedAt ? new Date(ticket.updatedAt) : null,
-        resolvedAt: ticket.resolvedAt ? new Date(ticket.resolvedAt) : null,
+      const ticketsRef = collection(db, 'tickets')
+      const q = query(
+        ticketsRef,
+        where('userId', '==', user.uid),
+        orderBy('createdAt', 'desc')
+      )
+      
+      const snapshot = await getDocs(q)
+      const ticketsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate() || null,
+        updatedAt: doc.data().updatedAt?.toDate() || null,
+        resolvedAt: doc.data().resolvedAt?.toDate() || null,
       }))
 
       setTickets(ticketsData)
@@ -68,36 +67,36 @@ export default function StudentTickets() {
     }
 
     try {
-      if (!token) {
-        setError('Authentication required. Please log in again.')
+      // Check Firebase Auth directly
+      const currentUser = auth.currentUser
+      if (!currentUser) {
+        setError('You are not authenticated with Firebase. Please log out and log in again.')
         return
       }
+
       setSubmitting(true)
       setError('')
 
-      const response = await fetch('/api/tickets', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${token}`,
-        },
-        body: JSON.stringify({
-          subject: formData.subject,
-          message: formData.message,
-        }),
-      })
-
-      if (!response.ok) {
-        const errorPayload = await response.json().catch(() => ({}))
-        throw new Error(errorPayload.message || 'Failed to submit ticket')
+      const ticketPayload = {
+        userId: currentUser.uid,
+        name: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : (user?.name || currentUser.email),
+        email: currentUser.email || '',
+        phone: user?.phoneNumber || user?.phone || '',
+        subject: formData.subject.trim(),
+        message: formData.message.trim(),
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp(),
+        resolvedAt: null,
       }
 
-      const payload = await response.json()
+      const docRef = await addDoc(collection(db, 'tickets'), ticketPayload)
+      
       const createdTicket = {
-        ...payload.data,
-        createdAt: payload.data?.createdAt ? new Date(payload.data.createdAt) : new Date(),
-        updatedAt: payload.data?.updatedAt ? new Date(payload.data.updatedAt) : new Date(),
-        resolvedAt: payload.data?.resolvedAt ? new Date(payload.data.resolvedAt) : null,
+        id: docRef.id,
+        ...ticketPayload,
+        createdAt: new Date(),
+        updatedAt: new Date(),
       }
 
       setSuccess(true)
@@ -109,7 +108,12 @@ export default function StudentTickets() {
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
       console.error('Error submitting ticket:', err)
-      setError(err.message || 'Failed to submit ticket. Please try again.')
+      // Show more detailed error
+      if (err.code === 'permission-denied') {
+        setError('Permission denied. Please make sure Firestore rules are published in Firebase Console.')
+      } else {
+        setError(err.message || 'Failed to submit ticket. Please try again.')
+      }
     } finally {
       setSubmitting(false)
     }
