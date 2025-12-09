@@ -28,14 +28,6 @@ Visit http://localhost:3000
 
 ## Features
 
-- 🔐 Authentication (Login/Signup)
-- 🗄️ MongoDB integration
-- 📄 Multiple pages (Home, About, Students, Contact)
-- 🎨 Tailwind CSS styling
-- ⚡ Next.js 15 with JavaScript
-- ⚛️ **Atomic Design Pattern** implementation
-- 📘 **TypeScript interfaces** for type safety
-- 🧩 Reusable component architecture
 
 ## Architecture
 
