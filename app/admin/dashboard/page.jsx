@@ -278,9 +278,6 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         <div className="bg-white rounded-2xl p-8 border-l-4 border-orange-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 bg-orange-100 rounded-xl flex items-center justify-center text-2xl">
-              🏛️
-            </div>
             <div>
               <h3 className="text-xl font-black text-slate-900">Student Council</h3>
               <p className="text-sm text-slate-600 font-medium">Department Student Government</p>
@@ -296,45 +293,36 @@ export default function AdminDashboard() {
 
         <div className="bg-white rounded-2xl p-8 border-l-4 border-purple-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center text-2xl">
-              🎬
-            </div>
             <div>
-              <h3 className="text-xl font-black text-slate-900">SPECS</h3>
+              <h3 className="text-xl font-black text-slate-900">IMAGES</h3>
               <p className="text-sm text-slate-600 font-medium">BSEMC Organization</p>
             </div>
           </div>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-sm text-slate-600">Total Members</span>
-              <span className="text-3xl font-black text-purple-600">{stats.specsMembers}</span>
+              <span className="text-3xl font-black text-purple-600">{stats.imagesMembers}</span>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl p-8 border-l-4 border-green-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 bg-green-100 rounded-xl flex items-center justify-center text-2xl">
-              🚀
-            </div>
             <div>
-              <h3 className="text-xl font-black text-slate-900">IMAGES</h3>
+              <h3 className="text-xl font-black text-slate-900">SPECS</h3>
               <p className="text-sm text-slate-600 font-medium">BSCS Organization</p>
             </div>
           </div>
           <div className="space-y-3">
             <div className="flex justify-between items-center">
               <span className="text-sm text-slate-600">Total Members</span>
-              <span className="text-3xl font-black text-green-600">{stats.imagesMembers}</span>
+              <span className="text-3xl font-black text-green-600">{stats.specsMembers}</span>
             </div>
           </div>
         </div>
 
         <div className="bg-white rounded-2xl p-8 border-l-4 border-blue-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-center gap-4 mb-6">
-            <div className="w-16 h-16 bg-blue-100 rounded-xl flex items-center justify-center text-2xl">
-              💻
-            </div>
             <div>
               <h3 className="text-xl font-black text-slate-900">ELITES</h3>
               <p className="text-sm text-slate-600 font-medium">BSIT Organization</p>
@@ -351,12 +339,7 @@ export default function AdminDashboard() {
 
       {/* Recent Activity */}
       <div className="bg-white rounded-2xl p-8 border border-slate-100 shadow-sm">
-        <h3 className="text-2xl font-black text-slate-900 mb-6 flex items-center gap-3">
-          <div className="w-10 h-10 bg-cyan-100 rounded-xl flex items-center justify-center">
-            <svg className="w-5 h-5 text-cyan-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-            </svg>
-          </div>
+        <h3 className="text-2xl font-black text-slate-900 mb-6">
           Recent Activity
         </h3>
         <div className="space-y-4">

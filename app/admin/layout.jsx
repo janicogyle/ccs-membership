@@ -112,10 +112,7 @@ export default function AdminLayout({ children }) {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
             </svg>
           </button>
-          <div className="flex w-9 h-9 items-center justify-center rounded-xl bg-white shadow-sm">
-            <span className="text-orange-600 font-black text-sm">CCS</span>
-          </div>
-          <span className="text-lg md:text-xl font-black text-white">CCS Admin Panel</span>
+          <span className="text-lg md:text-xl font-black text-white">Admin Panel</span>
         </div>
         <nav className="flex items-center gap-4 md:gap-6">
           {currentDateTime && (

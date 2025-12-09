@@ -20,10 +20,7 @@ export default function Header({ className = '' }) {
         <div className="flex justify-between items-center h-16">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-orange-500 to-orange-600 rounded-lg flex items-center justify-center">
-              <span className="text-white font-bold text-lg">C</span>
-            </div>
-            <span className="text-xl font-semibold text-gray-900">CCS MemberLink</span>
+            <span className="text-xl font-semibold text-orange-600">CCS MemberLink</span>
           </Link>
 
           {/* Navigation Links */}
