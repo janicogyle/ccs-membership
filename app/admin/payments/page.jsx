@@ -1,18 +1,87 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function AdminPaymentsPage() {
   const [filter, setFilter] = useState('all');
+  const [payments, setPayments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const payments = [
-    { id: 'PAY-001', student: 'Juan Dela Cruz', organization: 'ELITES', amount: 500, date: '2025-12-07', status: 'completed', method: 'GCash' },
-    { id: 'PAY-002', student: 'Maria Santos', organization: 'SPECS', amount: 350, date: '2025-12-05', status: 'completed', method: 'PayMaya' },
-    { id: 'PAY-003', student: 'Pedro Garcia', organization: 'ELITES', amount: 250, date: '2025-12-01', status: 'pending', method: 'GCash' },
-    { id: 'PAY-004', student: 'Michael Tan', organization: 'IMAGES', amount: 450, date: '2025-11-28', status: 'completed', method: 'Bank Transfer' },
-    { id: 'PAY-005', student: 'Sarah Lee', organization: 'IMAGES', amount: 300, date: '2025-11-25', status: 'failed', method: 'GCash' },
-    { id: 'PAY-006', student: 'Alex Chen', organization: 'ELITES', amount: 400, date: '2025-11-20', status: 'completed', method: 'GCash' },
-  ];
+  useEffect(() => {
+    fetchPayments();
+  }, []);
+
+  const fetchPayments = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch all transactions (excluding cash_ins)
+      const transactionsSnapshot = await getDocs(query(
+        collection(db, 'transactions'),
+        orderBy('createdAt', 'desc')
+      ));
+
+      const allTransactions = transactionsSnapshot.docs
+        .filter(doc => {
+          const data = doc.data();
+          return data.type !== 'cash_in';
+        })
+        .map(doc => {
+          const data = doc.data();
+          const createdAt = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : new Date());
+          
+          return {
+            id: doc.id,
+            transactionId: doc.id,
+            userId: data.userId,
+            student: data.userName || data.name || 'Unknown',
+            organization: data.organizationName || data.organizationId || '—',
+            amount: Number(data.amount) || 0,
+            date: createdAt,
+            status: data.status || 'pending',
+            method: data.method || data.provider || 'Wallet',
+          };
+        });
+
+      // Fetch user names for transactions that don't have userName
+      const userIds = [...new Set(allTransactions
+        .filter(t => t.userId && !t.student.includes('Unknown'))
+        .map(t => t.userId)
+        .filter(Boolean)
+      )];
+
+      const usersMap = new Map();
+      for (const userId of userIds) {
+        try {
+          const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', userId)));
+          if (!userDoc.empty) {
+            const userData = userDoc.docs[0].data();
+            const userName = userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email || 'Unknown';
+            usersMap.set(userId, userName);
+          }
+        } catch (err) {
+          console.error('Error fetching user name:', err);
+        }
+      }
+
+      // Update student names
+      const paymentsWithNames = allTransactions.map(payment => ({
+        ...payment,
+        student: usersMap.get(payment.userId) || payment.student,
+      }));
+
+      setPayments(paymentsWithNames);
+    } catch (err) {
+      console.error('Error fetching payments:', err);
+      setError('Failed to load payments. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const filteredPayments = filter === 'all' ? payments : payments.filter(p => p.status === filter);
   const totalRevenue = payments.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0);
@@ -116,38 +185,62 @@ export default function AdminPaymentsPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredPayments.map((payment) => (
-                <tr key={payment.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4 text-sm font-medium text-slate-900">{payment.id}</td>
-                  <td className="px-6 py-4 text-sm text-slate-900">{payment.student}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${
-                      payment.organization === 'SPECS' ? 'bg-purple-100 text-purple-700' :
-                      payment.organization === 'IMAGES' ? 'bg-green-100 text-green-700' :
-                      'bg-blue-100 text-blue-700'
-                    }`}>
-                      {payment.organization}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-sm font-semibold text-slate-900">₱{payment.amount.toLocaleString()}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {new Date(payment.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{payment.method}</td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                      payment.status === 'completed' ? 'bg-green-100 text-green-700' :
-                      payment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                      'bg-red-100 text-red-700'
-                    }`}>
-                      {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button className="text-purple-600 hover:text-purple-700 text-sm font-medium">View</button>
+              {loading ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-slate-500">
+                    Loading payments...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-red-600">
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredPayments.length === 0 ? (
+                <tr>
+                  <td colSpan={8} className="px-6 py-8 text-center text-sm text-slate-500">
+                    No payments found for the selected filter.
+                  </td>
+                </tr>
+              ) : (
+                filteredPayments.map((payment) => (
+                  <tr key={payment.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4 text-sm font-medium text-slate-900">{payment.transactionId.substring(0, 8)}...</td>
+                    <td className="px-6 py-4 text-sm text-slate-900">{payment.student}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${
+                        payment.organization === 'SPECS' ? 'bg-purple-100 text-purple-700' :
+                        payment.organization === 'IMAGES' ? 'bg-green-100 text-green-700' :
+                        payment.organization === 'ELITES' ? 'bg-blue-100 text-blue-700' :
+                        payment.organization === 'Student Council' ? 'bg-orange-100 text-orange-700' :
+                        'bg-slate-100 text-slate-700'
+                      }`}>
+                        {payment.organization}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4 text-sm font-semibold text-slate-900">₱{payment.amount.toLocaleString()}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {payment.date instanceof Date 
+                        ? payment.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                        : new Date(payment.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{payment.method}</td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                        payment.status === 'completed' ? 'bg-green-100 text-green-700' :
+                        payment.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                        'bg-red-100 text-red-700'
+                      }`}>
+                        {payment.status.charAt(0).toUpperCase() + payment.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button className="text-purple-600 hover:text-purple-700 text-sm font-medium">View</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

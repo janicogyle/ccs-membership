@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { collection, getDocs, query, where, orderBy } from 'firebase/firestore'
+import { collection, getDocs, query, where, onSnapshot } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 import { useAuth } from '@/contexts/AuthContext'
 
@@ -13,53 +13,154 @@ export default function StudentMembers() {
   const [userProgram, setUserProgram] = useState('')
 
   useEffect(() => {
-    if (user?.uid) {
-      fetchUserProgram()
+    if (!user?.uid) {
+      setMembers([]);
+      setLoading(false);
+      return;
     }
-  }, [user])
 
-  const fetchUserProgram = async () => {
-    try {
-      setLoading(true)
-      // Get current user's program from Firestore
-      const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', user.uid)))
-      if (!userDoc.empty) {
-        const userData = userDoc.docs[0].data()
-        const program = userData.program
-        setUserProgram(program)
-        
-        // Fetch members with same program only
-        await fetchMembers(program)
+    let unsubscribeMembers = null;
+
+    const fetchUserProgram = async () => {
+      try {
+        setLoading(true)
+        // Get current user's program from Firestore
+        const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', user.uid)))
+        if (!userDoc.empty) {
+          const userData = userDoc.docs[0].data()
+          const program = userData.program
+          setUserProgram(program)
+          
+          // Fetch members with same program only (returns unsubscribe function)
+          unsubscribeMembers = await fetchMembers(program)
+        } else {
+          setLoading(false);
+        }
+      } catch (err) {
+        console.error('Error fetching user program:', err)
+        setLoading(false)
       }
-    } catch (err) {
-      console.error('Error fetching user program:', err)
-      setLoading(false)
     }
-  }
+
+    fetchUserProgram();
+
+    return () => {
+      if (unsubscribeMembers) {
+        unsubscribeMembers();
+      }
+    };
+  }, [user])
 
   const fetchMembers = async (program) => {
     try {
-      // Query users with same program, excluding admins
+      // Determine organization ID based on program
+      const organizationMap = {
+        'BSIT': 'elites',
+        'BSCS': 'specs',
+        'BSEMC': 'images',
+      };
+      const organizationId = organizationMap[program] || '';
+
+      if (!organizationId) {
+        setLoading(false);
+        return;
+      }
+
+      // Use real-time listener for users with same program
       const membersQuery = query(
         collection(db, 'users'),
-        where('program', '==', program),
-        orderBy('createdAt', 'desc')
-      )
-      const membersSnapshot = await getDocs(membersQuery)
+        where('program', '==', program)
+      );
       
-      const membersData = membersSnapshot.docs
-        .map(doc => ({
-          id: doc.id,
-          ...doc.data(),
-          createdAt: doc.data().createdAt?.toDate(),
-        }))
-        .filter(member => !member.isAdmin) // Exclude admins
-      
-      setMembers(membersData)
+      const unsubscribe = onSnapshot(membersQuery, async (snapshot) => {
+        const membersData = [];
+        const now = new Date();
+        
+        for (const doc of snapshot.docs) {
+          const userData = doc.data();
+          
+          // Exclude admins
+          if (userData.isAdmin) continue;
+          
+          // Check if user has active subscription for this organization
+          let membershipStatus = 'inactive';
+          let paymentPlan = null;
+          let joinedDate = userData.createdAt?.toDate() || null;
+          
+          try {
+            // Check subscriptions
+            const subscriptionsQuery = query(
+              collection(db, 'subscriptions'),
+              where('userId', '==', userData.uid),
+              where('organizationId', '==', organizationId)
+            );
+            const subscriptionsSnapshot = await getDocs(subscriptionsQuery);
+            
+            for (const subDoc of subscriptionsSnapshot.docs) {
+              const subData = subDoc.data();
+              if (subData.status === 'active') {
+                const endDate = subData.endDate?.toDate?.() || subData.endDate;
+                if (!endDate || new Date(endDate) >= now) {
+                  membershipStatus = 'active';
+                  paymentPlan = subData.paymentPlan;
+                  joinedDate = subData.createdAt?.toDate() || joinedDate;
+                  break;
+                }
+              }
+            }
+            
+            // Also check members collection
+            if (membershipStatus === 'inactive') {
+              const membersQuery = query(
+                collection(db, 'members'),
+                where('userId', '==', userData.uid),
+                where('organizationId', '==', organizationId)
+              );
+              const membersSnapshot = await getDocs(membersQuery);
+              if (!membersSnapshot.empty) {
+                const memberData = membersSnapshot.docs[0].data();
+                if (memberData.status === 'active') {
+                  const expiresAt = memberData.expiresAt?.toDate?.() || memberData.expiresAt;
+                  if (!expiresAt || new Date(expiresAt) >= now) {
+                    membershipStatus = 'active';
+                    paymentPlan = memberData.paymentPlan;
+                    joinedDate = memberData.createdAt?.toDate() || memberData.joinedAt?.toDate() || joinedDate;
+                  }
+                }
+              }
+            }
+          } catch (err) {
+            console.error('Error checking membership status:', err);
+          }
+          
+          membersData.push({
+            id: doc.id,
+            ...userData,
+            createdAt: userData.createdAt?.toDate(),
+            membershipStatus: membershipStatus,
+            paymentPlan: paymentPlan,
+            joinedDate: joinedDate,
+          });
+        }
+        
+        // Sort by createdAt descending (newest first)
+        membersData.sort((a, b) => {
+          const aTime = a.createdAt?.getTime() || 0;
+          const bTime = b.createdAt?.getTime() || 0;
+          return bTime - aTime;
+        });
+        
+        setMembers(membersData);
+        setLoading(false);
+      }, (error) => {
+        console.error('Error in real-time members listener:', error);
+        setLoading(false);
+      });
+
+      return () => unsubscribe();
     } catch (err) {
-      console.error('Error fetching members:', err)
-    } finally {
-      setLoading(false)
+      console.error('Error setting up members listener:', err);
+      setLoading(false);
     }
   }
 
@@ -196,12 +297,19 @@ export default function StudentMembers() {
                     {/* Member Info */}
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-bold text-slate-900 truncate">
-                        {member.name || 'Unknown'}
+                        {member.name || member.firstName + ' ' + member.lastName || 'Unknown'}
                       </h3>
                       <p className="text-sm text-slate-600 truncate">{member.email}</p>
                       <div className="flex items-center gap-3 mt-2">
                         <span className={`px-3 py-1 rounded-lg text-xs font-semibold border ${getOrganizationColor(member.program)}`}>
                           {getOrganizationName(member.program)}
+                        </span>
+                        <span className={`px-3 py-1 rounded-lg text-xs font-semibold ${
+                          member.membershipStatus === 'active' 
+                            ? 'bg-green-100 text-green-700 border border-green-200' 
+                            : 'bg-slate-100 text-slate-600 border border-slate-200'
+                        }`}>
+                          {member.membershipStatus === 'active' ? 'Active Member' : 'Inactive'}
                         </span>
                         {member.year && (
                           <span className="text-xs text-slate-500 font-medium">
@@ -216,10 +324,13 @@ export default function StudentMembers() {
                   <div className="text-right ml-4">
                     <p className="text-xs text-slate-500">Member since</p>
                     <p className="text-sm font-medium text-slate-900">
-                      {member.createdAt?.toLocaleDateString('en-US', {
+                      {member.joinedDate?.toLocaleDateString('en-US', {
                         month: 'short',
                         year: 'numeric',
-                      })}
+                      }) || member.createdAt?.toLocaleDateString('en-US', {
+                        month: 'short',
+                        year: 'numeric',
+                      }) || '—'}
                     </p>
                   </div>
                 </div>

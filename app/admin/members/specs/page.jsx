@@ -1,22 +1,88 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { collection, getDocs, query, where } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
 
 export default function SpecsMembersPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [filter, setFilter] = useState('all');
+  const [members, setMembers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
-  const members = [
-    { id: 1, name: 'Juan Dela Cruz', studentId: '2023-10001', program: 'BSEMC', year: '3rd Year', status: 'active', joinDate: '2024-09-01' },
-    { id: 2, name: 'Maria Santos', studentId: '2023-10002', program: 'BSEMC', year: '2nd Year', status: 'active', joinDate: '2024-09-05' },
-    { id: 3, name: 'Pedro Garcia', studentId: '2023-10003', program: 'BSEMC', year: '4th Year', status: 'active', joinDate: '2024-09-03' },
-    { id: 4, name: 'Anna Reyes', studentId: '2023-10004', program: 'BSEMC', year: '1st Year', status: 'inactive', joinDate: '2024-09-10' },
-  ];
+  useEffect(() => {
+    fetchMembers();
+  }, []);
+
+  const fetchMembers = async () => {
+    try {
+      setLoading(true);
+      setError(null);
+
+      // Fetch SPECS members from members collection
+      const membersQuery = query(
+        collection(db, 'members'),
+        where('organizationId', '==', 'specs')
+      );
+      const membersSnapshot = await getDocs(membersQuery);
+
+      const membersData = [];
+      for (const doc of membersSnapshot.docs) {
+        const data = doc.data();
+        
+        // Get user details from users collection
+        let userData = null;
+        if (data.userId) {
+          try {
+            const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', data.userId)));
+            if (!userDoc.empty) {
+              userData = userDoc.docs[0].data();
+            }
+          } catch (err) {
+            console.error('Error fetching user data:', err);
+          }
+        }
+
+        const createdAt = data.createdAt?.toDate?.() || data.memberSince?.toDate?.() || new Date();
+        const name = data.name || data.userName || (userData ? (userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim()) : 'Unknown');
+        const studentId = userData?.studentId || data.studentId || 'N/A';
+        const program = userData?.program || data.program || 'BSEMC';
+        const year = userData?.year || data.year || null;
+
+        membersData.push({
+          id: doc.id,
+          name,
+          studentId,
+          program,
+          year: year ? `${year}${getOrdinalSuffix(year)} Year` : 'N/A',
+          status: data.status || 'active',
+          joinDate: createdAt,
+        });
+      }
+
+      setMembers(membersData);
+    } catch (err) {
+      console.error('Error fetching members:', err);
+      setError('Failed to load members. Please try again.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getOrdinalSuffix = (num) => {
+    const j = num % 10;
+    const k = num % 100;
+    if (j === 1 && k !== 11) return 'st';
+    if (j === 2 && k !== 12) return 'nd';
+    if (j === 3 && k !== 13) return 'rd';
+    return 'th';
+  };
 
   const filteredMembers = members.filter(member =>
     (filter === 'all' || member.status === filter) &&
     (member.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-     member.studentId.includes(searchTerm))
+     member.studentId.toLowerCase().includes(searchTerm.toLowerCase()))
   );
 
   return (
@@ -91,34 +157,56 @@ export default function SpecsMembersPage() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {filteredMembers.map((member) => (
-                <tr key={member.id} className="hover:bg-slate-50 transition-colors">
-                  <td className="px-6 py-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
-                        <span className="text-purple-600 font-semibold text-sm">{member.name.charAt(0)}</span>
-                      </div>
-                      <span className="font-medium text-slate-900">{member.name}</span>
-                    </div>
-                  </td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{member.studentId}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{member.program}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">{member.year}</td>
-                  <td className="px-6 py-4 text-sm text-slate-600">
-                    {new Date(member.joinDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                  </td>
-                  <td className="px-6 py-4">
-                    <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
-                      member.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4">
-                    <button className="text-purple-600 hover:text-purple-700 text-sm font-medium">View</button>
+              {loading ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                    Loading members...
                   </td>
                 </tr>
-              ))}
+              ) : error ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-red-600">
+                    {error}
+                  </td>
+                </tr>
+              ) : filteredMembers.length === 0 ? (
+                <tr>
+                  <td colSpan={7} className="px-6 py-8 text-center text-sm text-slate-500">
+                    No members found {searchTerm && `matching "${searchTerm}"`}
+                  </td>
+                </tr>
+              ) : (
+                filteredMembers.map((member) => (
+                  <tr key={member.id} className="hover:bg-slate-50 transition-colors">
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-purple-100 rounded-full flex items-center justify-center">
+                          <span className="text-purple-600 font-semibold text-sm">{member.name.charAt(0)}</span>
+                        </div>
+                        <span className="font-medium text-slate-900">{member.name}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{member.studentId}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{member.program}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">{member.year}</td>
+                    <td className="px-6 py-4 text-sm text-slate-600">
+                      {member.joinDate instanceof Date
+                        ? member.joinDate.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+                        : new Date(member.joinDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                    </td>
+                    <td className="px-6 py-4">
+                      <span className={`inline-flex px-3 py-1 rounded-full text-xs font-medium ${
+                        member.status === 'active' ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {member.status.charAt(0).toUpperCase() + member.status.slice(1)}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <button className="text-purple-600 hover:text-purple-700 text-sm font-medium">View</button>
+                    </td>
+                  </tr>
+                ))
+              )}
             </tbody>
           </table>
         </div>

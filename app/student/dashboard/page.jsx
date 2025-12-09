@@ -27,8 +27,8 @@ export default function StudentDashboard() {
   const [showCashIn, setShowCashIn] = useState(false);
   const [showPayment, setShowPayment] = useState(false);
   const [cashInAmount, setCashInAmount] = useState('');
-  const [selectedOrganization, setSelectedOrganization] = useState('elites');
-  const [paymentType, setPaymentType] = useState('organization_full');
+  const [selectedOrganization, setSelectedOrganization] = useState('student_council'); // Default to Student Council
+  const [paymentType, setPaymentType] = useState('council_full');
   const [processing, setProcessing] = useState(false);
   const [recentTransactions, setRecentTransactions] = useState([]);
   
@@ -36,40 +36,102 @@ export default function StudentDashboard() {
   const [activeSubscriptions, setActiveSubscriptions] = useState([]);
   const [totalPayments, setTotalPayments] = useState(0);
   const [transactionCount, setTransactionCount] = useState(0);
+  const [userProgram, setUserProgram] = useState('');
 
-  // Dynamic organizations based on subscriptions
+  // Fetch user program from Firestore
+  useEffect(() => {
+    const fetchUserProgram = async () => {
+      if (!user?.uid) return;
+      
+      try {
+        const userDoc = await getDoc(doc(db, 'users', user.uid));
+        if (userDoc.exists()) {
+          const userData = userDoc.data();
+          setUserProgram(userData.program || user.program || '');
+        } else {
+          setUserProgram(user.program || '');
+        }
+      } catch (err) {
+        console.error('Error fetching user program:', err);
+        setUserProgram(user.program || '');
+      }
+    };
+
+    fetchUserProgram();
+  }, [user]);
+
+  // Dynamic organizations based on subscriptions and user program - synced with membership status
   const organizations = useMemo(() => {
-    const orgList = [
-      { id: 'student_council', name: 'Student Council', program: 'CCS Student Government', color: 'orange' },
-      { id: 'elites', name: 'ELITES', program: 'Student Council Extension • BSIT', color: 'blue' },
-      { id: 'specs', name: 'SPECS', program: 'Student Council Extension • BSCS', color: 'purple' },
-      { id: 'images', name: 'IMAGES', program: 'Student Council Extension • BSEMC', color: 'green' },
+    // All possible organizations
+    const allOrgs = [
+      { id: 'student_council', name: 'Student Council', program: 'CCS Student Government', color: 'orange', programMatch: null }, // Always show
+      { id: 'elites', name: 'ELITES', program: 'Student Council Extension • BSIT', color: 'blue', programMatch: 'BSIT' },
+      { id: 'specs', name: 'SPECS', program: 'Student Council Extension • BSCS', color: 'purple', programMatch: 'BSCS' },
+      { id: 'images', name: 'IMAGES', program: 'Student Council Extension • BSEMC', color: 'green', programMatch: 'BSEMC' },
     ];
     
+    // Filter organizations based on user's program
+    const orgList = allOrgs.filter(org => {
+      // Always show Student Council
+      if (org.id === 'student_council') return true;
+      
+      // Show organization only if it matches user's program
+      if (!userProgram) return false; // If no program, don't show any org-specific ones
+      
+      return org.programMatch === userProgram;
+    });
+    
     return orgList.map(org => {
-      const subscription = activeSubscriptions.find(sub => 
-        sub.organizationId === org.id || 
-        sub.organizationName?.toLowerCase() === org.name.toLowerCase()
-      );
+      // Find matching subscription - check both organizationId and organizationName
+      const subscription = activeSubscriptions.find(sub => {
+        const subOrgId = sub.organizationId || '';
+        const subOrgName = (sub.organizationName || '').toLowerCase();
+        const orgId = org.id.toLowerCase();
+        const orgName = org.name.toLowerCase();
+        
+        return subOrgId === org.id || 
+               subOrgId === orgId ||
+               subOrgName === orgName ||
+               subOrgName.includes(orgName) ||
+               orgName.includes(subOrgName);
+      });
+      
+      // Check if subscription is still active (not expired)
+      let isActive = subscription && subscription.status === 'active';
+      let expiresAt = null;
+      if (subscription?.endDate) {
+        expiresAt = subscription.endDate?.toDate?.() || subscription.endDate;
+        // Check if expired
+        if (expiresAt && expiresAt < new Date()) {
+          isActive = false;
+        }
+      }
       
       return {
         ...org,
-        status: subscription ? 'Active' : 'Inactive',
+        status: isActive ? 'Active' : 'Inactive',
         paymentPlan: subscription?.paymentPlan || null,
         duration: subscription?.duration || null,
-        expiresAt: subscription?.endDate?.toDate?.() || subscription?.endDate || null,
+        expiresAt: expiresAt,
       };
     });
-  }, [activeSubscriptions]);
+  }, [activeSubscriptions, userProgram]);
+  
+  // Calculate active memberships count for membership status card
+  const activeMembershipsCount = useMemo(() => {
+    return organizations.filter(org => org.status === 'Active').length;
+  }, [organizations]);
 
-  const organizationOptions = useMemo(
-    () => [
+  // Organization options filtered by user program
+  const organizationOptions = useMemo(() => {
+    const allOptions = [
       {
         id: 'student_council',
         name: 'Student Council',
         tagline: 'CCS Department Student Government',
         badgeClass: 'bg-emerald-100 text-emerald-700',
         iconEmoji: '🏛️',
+        programMatch: null, // Always available
       },
       {
         id: 'elites',
@@ -77,6 +139,7 @@ export default function StudentDashboard() {
         tagline: 'Student Council Extension • BSIT',
         badgeClass: 'bg-blue-100 text-blue-700',
         iconEmoji: '💻',
+        programMatch: 'BSIT',
       },
       {
         id: 'specs',
@@ -84,6 +147,7 @@ export default function StudentDashboard() {
         tagline: 'Student Council Extension • BSCS',
         badgeClass: 'bg-purple-100 text-purple-700',
         iconEmoji: '🎬',
+        programMatch: 'BSCS',
       },
       {
         id: 'images',
@@ -91,10 +155,17 @@ export default function StudentDashboard() {
         tagline: 'Student Council Extension • BSEMC',
         badgeClass: 'bg-green-100 text-green-700',
         iconEmoji: '🚀',
+        programMatch: 'BSEMC',
       },
-    ],
-    []
-  );
+    ];
+
+    // Filter based on user's program
+    return allOptions.filter(option => {
+      if (option.id === 'student_council') return true; // Always show Student Council
+      if (!userProgram) return false; // If no program, don't show org-specific ones
+      return option.programMatch === userProgram;
+    });
+  }, [userProgram]);
 
   const selectedOrganizationMeta = useMemo(
     () => organizationOptions.find((option) => option.id === selectedOrganization) ?? organizationOptions[0],
@@ -156,7 +227,7 @@ export default function StudentDashboard() {
     }
   }, [user]);
 
-  // Fetch active subscriptions from database
+  // Fetch active subscriptions from database - real-time sync
   useEffect(() => {
     if (!user?.uid) {
       setActiveSubscriptions([]);
@@ -170,10 +241,24 @@ export default function StudentDashboard() {
     );
 
     const unsubscribe = onSnapshot(subscriptionsQuery, (snapshot) => {
-      const subs = snapshot.docs.map((doc) => ({
-        id: doc.id,
-        ...doc.data(),
-      }));
+      const now = new Date();
+      const subs = snapshot.docs
+        .map((doc) => {
+          const data = doc.data();
+          return {
+            id: doc.id,
+            ...data,
+            endDate: data.endDate?.toDate?.() || data.endDate,
+          };
+        })
+        .filter(sub => {
+          // Filter out expired subscriptions
+          if (sub.endDate) {
+            const endDate = sub.endDate instanceof Date ? sub.endDate : new Date(sub.endDate);
+            return endDate >= now;
+          }
+          return true; // If no endDate, assume active
+        });
       setActiveSubscriptions(subs);
     });
 
@@ -216,33 +301,52 @@ export default function StudentDashboard() {
       return;
     }
 
+    // Use query without orderBy to avoid index requirement, then sort in memory
     const transactionsQuery = query(
       collection(db, 'transactions'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc'),
-      limit(5)
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(transactionsQuery, (snapshot) => {
-      const items = snapshot.docs.map((docSnap) => {
-        const data = docSnap.data();
-        const createdAt = data.createdAt?.toDate?.() ?? (data.createdAt ? new Date(data.createdAt) : null);
-        const amountValue = Number(data.amount) || 0;
-        const isCashIn = data.type === 'cash_in';
-        const dateLabel = createdAt
-          ? createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
-          : '—';
+      const items = snapshot.docs
+        .map((docSnap) => {
+          const data = docSnap.data();
+          const createdAt = data.createdAt?.toDate?.() ?? (data.createdAt ? new Date(data.createdAt) : null);
+          const amountValue = Number(data.amount) || 0;
+          const isCashIn = data.type === 'cash_in';
+          const dateLabel = createdAt
+            ? createdAt.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+            : '—';
 
-        return {
-          id: docSnap.id,
-          type: data.type || 'payment',
-          description: data.description || (isCashIn ? 'Wallet cash-in via PayMongo' : 'Membership payment'),
-          date: dateLabel,
-          amount: amountValue ? `${isCashIn ? '+' : '-'}₱${amountValue.toFixed(2)}` : null,
-        };
-      });
+          // Use same description format as payment history page
+          const description = data.description || 
+            (isCashIn ? 'Wallet cash-in' : 
+             data.organizationName ? `${data.organizationName} - Membership payment` : 
+             'Membership payment');
+
+          return {
+            id: docSnap.id,
+            type: data.type || 'payment',
+            description: description,
+            date: dateLabel,
+            amount: amountValue ? `${isCashIn ? '+' : '-'}₱${amountValue.toFixed(2)}` : null,
+            status: data.status || 'completed',
+            organization: data.organizationName || data.subscriptionType || '—',
+            createdAt: createdAt, // Store full date for consistency
+          };
+        })
+        .sort((a, b) => {
+          // Sort by createdAt descending (newest first)
+          const aTime = a.createdAt?.getTime() || 0;
+          const bTime = b.createdAt?.getTime() || 0;
+          return bTime - aTime;
+        })
+        .slice(0, 5); // Limit to 5 most recent
 
       setRecentTransactions(items);
+    }, (error) => {
+      console.error('Error fetching recent transactions:', error);
+      setRecentTransactions([]);
     });
 
     return () => unsubscribe();
@@ -260,6 +364,25 @@ export default function StudentDashboard() {
     document.body.style.overflow = '';
     return undefined;
   }, [showCashIn, showPayment]);
+
+  // Update selected organization when user program changes
+  useEffect(() => {
+    if (!userProgram) return;
+    
+    // If current selection is not available for this program, switch to appropriate default
+    const availableOrgIds = organizationOptions.map(opt => opt.id);
+    
+    if (!availableOrgIds.includes(selectedOrganization)) {
+      // Set to Student Council if available, otherwise first available org
+      if (availableOrgIds.includes('student_council')) {
+        setSelectedOrganization('student_council');
+        setPaymentType('council_full');
+      } else if (availableOrgIds.length > 0) {
+        setSelectedOrganization(availableOrgIds[0]);
+        setPaymentType('organization_full');
+      }
+    }
+  }, [userProgram, organizationOptions, selectedOrganization]);
 
   useEffect(() => {
     if (!paymentOptions.length) {
@@ -413,11 +536,15 @@ export default function StudentDashboard() {
         createdAt: new Date()
       });
 
-      // Register as member in the members collection
+      // Register as member in the members collection - ensures it shows in admin list
+      const memberName = user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email);
       await addDoc(collection(db, 'members'), {
         userId: user.uid,
-        name: user.name || (user.firstName && user.lastName ? `${user.firstName} ${user.lastName}` : user.email),
+        name: memberName,
+        userName: memberName, // Also store as userName for consistency
         email: user.email,
+        firstName: user.firstName || '',
+        lastName: user.lastName || '',
         program: user.program || '',
         year: user.year || '',
         block: user.block || '',
@@ -429,8 +556,10 @@ export default function StudentDashboard() {
         amountPaid: paymentAmount,
         status: 'active',
         memberSince: new Date(),
+        joinedAt: new Date(), // Also store as joinedAt for admin display
         expiresAt: new Date(Date.now() + subscriptionDurationDays * 24 * 60 * 60 * 1000),
-        createdAt: new Date()
+        createdAt: new Date(),
+        updatedAt: new Date()
       });
 
       await fetchWalletBalance();
@@ -702,14 +831,17 @@ export default function StudentDashboard() {
           </div>
         </div>
 
-        {/* Card 3 - Green - Membership Status */}
+        {/* Card 3 - Green - Membership Status - Synced with Organizations */}
         <div className="bg-white p-6 rounded-2xl border-l-4 border-green-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-start justify-between">
             <div>
               <p className="text-slate-600 text-sm mb-2">Membership Status</p>
-              <h3 className={`text-3xl font-black ${activeSubscriptions.length > 0 ? 'text-green-600' : 'text-slate-400'}`}>
-                {activeSubscriptions.length > 0 ? 'Active' : 'Inactive'}
+              <h3 className={`text-3xl font-black ${activeMembershipsCount > 0 ? 'text-green-600' : 'text-slate-400'}`}>
+                {activeMembershipsCount > 0 ? 'Active' : 'Inactive'}
               </h3>
+              {activeMembershipsCount > 0 && (
+                <p className="text-xs text-slate-500 mt-1">{activeMembershipsCount} active membership{activeMembershipsCount !== 1 ? 's' : ''}</p>
+              )}
             </div>
             <div className="w-12 h-12 bg-green-100 rounded-xl flex items-center justify-center">
               <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">

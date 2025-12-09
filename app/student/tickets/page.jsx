@@ -2,13 +2,13 @@
 
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { collection, query, where, getDocs, addDoc, orderBy, serverTimestamp } from 'firebase/firestore'
+import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db, auth } from '@/lib/firebase'
 
 export default function StudentTickets() {
   const { user } = useAuth()
   const [tickets, setTickets] = useState([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
   const [showForm, setShowForm] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -19,38 +19,59 @@ export default function StudentTickets() {
   })
 
   useEffect(() => {
-    if (user?.uid) {
-      fetchMyTickets()
-    }
-  }, [user?.uid])
-
-  const fetchMyTickets = async () => {
-    if (!user?.uid) return
-    try {
-      setLoading(true)
-      const ticketsRef = collection(db, 'tickets')
-      const q = query(
-        ticketsRef,
-        where('userId', '==', user.uid),
-        orderBy('createdAt', 'desc')
-      )
-      
-      const snapshot = await getDocs(q)
-      const ticketsData = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data(),
-        createdAt: doc.data().createdAt?.toDate() || null,
-        updatedAt: doc.data().updatedAt?.toDate() || null,
-        resolvedAt: doc.data().resolvedAt?.toDate() || null,
-      }))
-
-      setTickets(ticketsData)
-    } catch (err) {
-      console.error('Error fetching tickets:', err)
-    } finally {
+    if (!user?.uid) {
+      setTickets([])
       setLoading(false)
+      return
     }
-  }
+
+    setLoading(true)
+    // Use query without orderBy to avoid index requirement, then sort in memory
+    const ticketsRef = collection(db, 'tickets')
+    const q = query(
+      ticketsRef,
+      where('userId', '==', user.uid)
+    )
+    
+    // Use onSnapshot for real-time updates
+    const unsubscribe = onSnapshot(
+      q,
+      (snapshot) => {
+        const ticketsData = snapshot.docs
+          .map(doc => {
+            const data = doc.data()
+            return {
+              id: doc.id,
+              ...data,
+              createdAt: data.createdAt?.toDate() || null,
+              updatedAt: data.updatedAt?.toDate() || null,
+              resolvedAt: data.resolvedAt?.toDate() || null,
+            }
+          })
+          .sort((a, b) => {
+            // Sort by createdAt descending (newest first)
+            const aTime = a.createdAt?.getTime() || 0
+            const bTime = b.createdAt?.getTime() || 0
+            return bTime - aTime
+          })
+
+        setTickets(ticketsData)
+        setLoading(false)
+        setError('')
+      },
+      (err) => {
+        console.error('Error fetching tickets:', err)
+        if (err.code === 'permission-denied') {
+          setError('Permission denied. Please make sure you are logged in.')
+        } else {
+          setError('Unable to load tickets. Please refresh the page.')
+        }
+        setLoading(false)
+      }
+    )
+
+    return () => unsubscribe()
+  }, [user?.uid])
 
   const handleChange = (e) => {
     const { name, value } = e.target
@@ -90,20 +111,12 @@ export default function StudentTickets() {
         resolvedAt: null,
       }
 
-      const docRef = await addDoc(collection(db, 'tickets'), ticketPayload)
+      await addDoc(collection(db, 'tickets'), ticketPayload)
       
-      const createdTicket = {
-        id: docRef.id,
-        ...ticketPayload,
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-
+      // The onSnapshot listener will automatically update the tickets list
       setSuccess(true)
       setFormData({ subject: '', message: '' })
       setShowForm(false)
-
-      setTickets(prev => [createdTicket, ...prev])
       
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {

@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
-import { collection, getDocs } from 'firebase/firestore'
+import { collection, getDocs, query, orderBy, limit, where } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
 
 export default function AdminDashboard() {
@@ -17,40 +17,154 @@ export default function AdminDashboard() {
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [recentActivities, setRecentActivities] = useState([])
+
+  // Helper function to format time ago
+  const getTimeAgo = (date) => {
+    if (!date) return '—'
+    const now = new Date()
+    const diffMs = now - date
+    const diffMins = Math.floor(diffMs / 60000)
+    const diffHours = Math.floor(diffMs / 3600000)
+    const diffDays = Math.floor(diffMs / 86400000)
+
+    if (diffMins < 1) return 'Just now'
+    if (diffMins < 60) return `${diffMins} minute${diffMins > 1 ? 's' : ''} ago`
+    if (diffHours < 24) return `${diffHours} hour${diffHours > 1 ? 's' : ''} ago`
+    if (diffDays < 7) return `${diffDays} day${diffDays > 1 ? 's' : ''} ago`
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+  }
 
   useEffect(() => {
     const fetchStats = async () => {
       try {
-        // Fetch all users from Firestore
+        // Fetch all registered users (excluding admins)
         const usersSnapshot = await getDocs(collection(db, 'users'))
-        const totalMembers = usersSnapshot.size
+        const registeredUsers = usersSnapshot.docs.filter(doc => !doc.data().isAdmin)
+        const totalMembers = registeredUsers.length
 
-        // For now, we'll use mock data for organization-specific stats
-        // You can update this later when you have organization data in Firestore
+        // Fetch organization-specific stats from database
+        const membersSnapshot = await getDocs(collection(db, 'members'))
+        const transactionsSnapshot = await getDocs(collection(db, 'transactions'))
+        
+        // Calculate actual stats
+        const specsMembers = membersSnapshot.docs.filter(doc => doc.data().organizationId === 'specs').length
+        const imagesMembers = membersSnapshot.docs.filter(doc => doc.data().organizationId === 'images').length
+        const elitesMembers = membersSnapshot.docs.filter(doc => doc.data().organizationId === 'elites').length
+        
+        const totalPayments = transactionsSnapshot.docs
+          .filter(doc => doc.data().status === 'completed' && doc.data().type !== 'cash_in')
+          .reduce((sum, doc) => sum + (Number(doc.data().amount) || 0), 0)
+        
+        const pendingPayments = transactionsSnapshot.docs
+          .filter(doc => doc.data().status === 'pending')
+          .reduce((sum, doc) => sum + (Number(doc.data().amount) || 0), 0)
+        
         setStats({
           totalMembers,
-          specsMembers: Math.floor(totalMembers * 0.35),
-          imagesMembers: Math.floor(totalMembers * 0.40),
-          elitesMembers: Math.floor(totalMembers * 0.25),
-          totalPayments: 25000,
-          pendingPayments: 5000,
+          specsMembers,
+          imagesMembers,
+          elitesMembers,
+          totalPayments,
+          pendingPayments,
         })
+
+        // Fetch recent activities from real data
+        await fetchRecentActivities()
       } catch (err) {
         console.error('Error loading statistics:', err)
+        setError('Failed to load dashboard data')
       } finally {
         setLoading(false)
       }
     }
 
+    const fetchRecentActivities = async () => {
+      try {
+        const activities = []
+
+        // Fetch recent members (from members collection, limit 5)
+        const recentMembersQuery = query(
+          collection(db, 'members'),
+          orderBy('createdAt', 'desc'),
+          limit(5)
+        )
+        const recentMembersSnapshot = await getDocs(recentMembersQuery)
+        
+        recentMembersSnapshot.docs.forEach(doc => {
+          const data = doc.data()
+          const createdAt = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : new Date())
+          const orgName = data.organizationName || data.organizationId || 'Organization'
+          activities.push({
+            type: 'member',
+            user: data.name || data.userName || 'Unknown',
+            action: `Joined ${orgName} organization`,
+            time: getTimeAgo(createdAt),
+            timestamp: createdAt.getTime(),
+          })
+        })
+
+        // Fetch recent transactions (payments only, limit 5)
+        // Note: Firestore doesn't support != queries with orderBy, so we fetch all and filter
+        const allTransactionsSnapshot = await getDocs(query(
+          collection(db, 'transactions'),
+          orderBy('createdAt', 'desc'),
+          limit(20) // Fetch more to filter out cash_ins
+        ))
+        
+        const recentTransactionsSnapshot = {
+          docs: allTransactionsSnapshot.docs
+            .filter(doc => {
+              const data = doc.data()
+              return data.type !== 'cash_in' && data.status === 'completed'
+            })
+            .slice(0, 5)
+        }
+
+        // Fetch user names for transactions
+        const userIds = [...new Set(recentTransactionsSnapshot.docs.map(doc => doc.data().userId).filter(Boolean))]
+        const usersMap = new Map()
+        
+        for (const userId of userIds) {
+          try {
+            const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', userId)))
+            if (!userDoc.empty) {
+              const userData = userDoc.docs[0].data()
+              const userName = userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email || 'Unknown'
+              usersMap.set(userId, userName)
+            }
+          } catch (err) {
+            console.error('Error fetching user name:', err)
+          }
+        }
+
+        recentTransactionsSnapshot.docs.forEach(doc => {
+          const data = doc.data()
+          const createdAt = data.createdAt?.toDate?.() || (data.createdAt ? new Date(data.createdAt) : new Date())
+          const userName = usersMap.get(data.userId) || data.userName || data.name || 'Unknown'
+          const amount = Number(data.amount) || 0
+          
+          activities.push({
+            type: 'payment',
+            user: userName,
+            action: `Payment received - ₱${amount.toFixed(0)}`,
+            time: getTimeAgo(createdAt),
+            timestamp: createdAt.getTime(),
+          })
+        })
+
+        // Sort all activities by timestamp (most recent first) and limit to 5
+        activities.sort((a, b) => b.timestamp - a.timestamp)
+        setRecentActivities(activities.slice(0, 5))
+      } catch (err) {
+        console.error('Error fetching recent activities:', err)
+        // Set empty array on error
+        setRecentActivities([])
+      }
+    }
+
     fetchStats()
   }, [])
-
-  const recentActivities = [
-    { type: 'member', user: 'Juan Dela Cruz', action: 'Joined ELITES organization', time: '2 hours ago' },
-    { type: 'payment', user: 'Maria Santos', action: 'Payment received - ₱500', time: '3 hours ago' },
-    { type: 'member', user: 'Pedro Garcia', action: 'Joined SPECS organization', time: '5 hours ago' },
-    { type: 'payment', user: 'Anna Reyes', action: 'Payment received - ₱350', time: '6 hours ago' },
-  ]
 
   if (loading) {
     return (
@@ -207,28 +321,35 @@ export default function AdminDashboard() {
           Recent Activity
         </h3>
         <div className="space-y-4">
-          {recentActivities.map((activity, index) => (
-            <div key={index} className="flex items-start gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
-                activity.type === 'payment' ? 'bg-green-100' : 'bg-blue-100'
-              }`}>
-                {activity.type === 'payment' ? (
-                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                  </svg>
-                ) : (
-                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                  </svg>
-                )}
-              </div>
-              <div className="flex-1 min-w-0">
-                <p className="text-sm font-bold text-slate-900">{activity.user}</p>
-                <p className="text-sm text-slate-600">{activity.action}</p>
-                <p className="text-xs text-slate-500 mt-1 font-medium">{activity.time}</p>
-              </div>
+          {recentActivities.length === 0 ? (
+            <div className="text-center py-8">
+              <p className="text-sm text-slate-500">No recent activity yet</p>
+              <p className="text-xs text-slate-400 mt-1">Activities will appear here as students join and make payments</p>
             </div>
-          ))}
+          ) : (
+            recentActivities.map((activity, index) => (
+              <div key={index} className="flex items-start gap-4 pb-4 border-b border-slate-100 last:border-0 last:pb-0">
+                <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 ${
+                  activity.type === 'payment' ? 'bg-green-100' : 'bg-blue-100'
+                }`}>
+                  {activity.type === 'payment' ? (
+                    <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  ) : (
+                    <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+                    </svg>
+                  )}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-bold text-slate-900">{activity.user}</p>
+                  <p className="text-sm text-slate-600">{activity.action}</p>
+                  <p className="text-xs text-slate-500 mt-1 font-medium">{activity.time}</p>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       </div>
 

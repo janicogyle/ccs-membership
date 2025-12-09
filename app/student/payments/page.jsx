@@ -20,30 +20,46 @@ export default function PaymentHistoryPage() {
     }
 
     setLoading(true);
+    
+    // Use fallback query that doesn't require composite index
+    // Query without orderBy, then sort in memory
     const q = query(
       collection(db, 'transactions'),
-      where('userId', '==', user.uid),
-      orderBy('createdAt', 'desc')
+      where('userId', '==', user.uid)
     );
 
     const unsubscribe = onSnapshot(
       q,
       (snapshot) => {
-        const items = snapshot.docs.map((doc) => {
-          const data = doc.data();
-          const createdAt = data.createdAt?.toDate?.() ?? (data.createdAt ? new Date(data.createdAt) : null);
-          return {
-            id: doc.id,
-            amount: Number(data.amount) || 0,
-            description: data.description || (data.type === 'cash_in' ? 'Wallet cash-in' : 'Membership payment'),
-            organization: data.organizationName || data.subscriptionType || '—',
-            method: data.provider || data.method || (data.type === 'cash_in' ? 'PayMongo' : 'Wallet'),
-            reference: data.checkoutSessionId || data.reference || doc.id,
-            status: data.status || 'completed',
-            type: data.type || 'payment',
-            createdAt,
-          };
-        });
+        const items = snapshot.docs
+          .map((doc) => {
+            const data = doc.data();
+            const createdAt = data.createdAt?.toDate?.() ?? (data.createdAt ? new Date(data.createdAt) : null);
+            
+            // Use consistent description format with dashboard
+            const description = data.description || 
+              (data.type === 'cash_in' ? 'Wallet cash-in' : 
+               data.organizationName ? `${data.organizationName} - Membership payment` : 
+               'Membership payment');
+            
+            return {
+              id: doc.id,
+              amount: Number(data.amount) || 0,
+              description: description,
+              organization: data.organizationName || data.subscriptionType || '—',
+              method: data.provider || data.method || (data.type === 'cash_in' ? 'PayMongo' : 'Wallet'),
+              reference: data.checkoutSessionId || data.reference || doc.id,
+              status: data.status || 'completed',
+              type: data.type || 'payment',
+              createdAt,
+            };
+          })
+          .sort((a, b) => {
+            // Sort by createdAt descending (newest first)
+            const aTime = a.createdAt?.getTime() || 0;
+            const bTime = b.createdAt?.getTime() || 0;
+            return bTime - aTime;
+          });
 
         setTransactions(items);
         setLoading(false);
@@ -51,7 +67,14 @@ export default function PaymentHistoryPage() {
       },
       (snapshotError) => {
         console.error('Failed to load transactions:', snapshotError);
-        setError('Unable to load your transactions right now.');
+        // Show more helpful error message
+        if (snapshotError.code === 'permission-denied') {
+          setError('Permission denied. Please make sure you are logged in.');
+        } else if (snapshotError.code === 'failed-precondition') {
+          setError('Database index required. Please contact support.');
+        } else {
+          setError('Unable to load your transactions right now. Please refresh the page.');
+        }
         setLoading(false);
       }
     );

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { collection, query, where, getDocs, orderBy } from 'firebase/firestore';
+import { collection, query, where, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 
 export default function AdminMembersPage() {
@@ -64,7 +64,253 @@ export default function AdminMembersPage() {
   ];
 
   useEffect(() => {
-    fetchMembers();
+    if (!activeTab) {
+      setMembers([]);
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    const currentTab = tabs.find(t => t.id === activeTab);
+    
+    // First, try to fetch from members collection with real-time listener
+    let membersQuery;
+    if (activeTab === 'council') {
+      membersQuery = query(
+        collection(db, 'members'),
+        where('organizationId', '==', 'student_council')
+      );
+    } else {
+      membersQuery = query(
+        collection(db, 'members'),
+        where('organizationId', '==', activeTab)
+      );
+    }
+
+    // Real-time listener for members - updates automatically when students pay
+    const unsubscribe = onSnapshot(
+      membersQuery,
+      async (snapshot) => {
+        if (!snapshot.empty) {
+          const membersData = [];
+          const processedUserIds = new Set();
+          
+          // First, add all members from members collection
+          for (const doc of snapshot.docs) {
+            const data = doc.data();
+            
+            // Verify user exists in users collection and is not an admin
+            if (data.userId) {
+              try {
+                const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', data.userId)));
+                if (!userDoc.empty) {
+                  const userData = userDoc.docs[0].data();
+                  // Only include registered students (exclude admins)
+                  if (userData.isAdmin) {
+                    continue;
+                  }
+                  
+                  processedUserIds.add(data.userId);
+                  
+                  membersData.push({
+                    id: data.userId,
+                    ...userData,
+                    ...data,
+                    subscriptionStatus: data.status || 'active',
+                    subscriptionType: data.paymentPlan || 'N/A',
+                    paymentPlan: data.paymentPlan,
+                    semesterType: data.semesterType,
+                    semesterLabel: data.semesterLabel,
+                    joinedDate: data.joinedAt?.toDate() || data.createdAt?.toDate() || null,
+                  });
+                } else {
+                  // User doesn't exist in users collection, skip
+                  continue;
+                }
+              } catch (err) {
+                console.error('Error verifying user:', err);
+                // Continue anyway if verification fails
+              }
+            }
+          }
+          
+          // Then, add ALL registered students from users collection who haven't been added yet
+          const currentTab = tabs.find(t => t.id === activeTab);
+          if (currentTab && currentTab.program !== 'all') {
+            const usersQuery = query(
+              collection(db, 'users'),
+              where('program', '==', currentTab.program)
+            );
+            const usersSnapshot = await getDocs(usersQuery);
+            
+            for (const doc of usersSnapshot.docs) {
+              const userData = doc.data();
+              
+              // Skip admins and already processed users
+              if (userData.isAdmin || processedUserIds.has(userData.uid)) {
+                continue;
+              }
+              
+              // Check subscription status
+              const subscriptionsQuery = query(
+                collection(db, 'subscriptions'),
+                where('userId', '==', userData.uid),
+                where('type', '==', 'organization'),
+                where('organizationId', '==', activeTab)
+              );
+              const subscriptionsSnapshot = await getDocs(subscriptionsQuery);
+              
+              let isActive = false;
+              let subscription = null;
+              const now = new Date();
+              
+              for (const subDoc of subscriptionsSnapshot.docs) {
+                const subData = subDoc.data();
+                if (subData.status === 'active') {
+                  const endDate = subData.endDate?.toDate?.() || subData.endDate;
+                  if (!endDate || new Date(endDate) >= now) {
+                    isActive = true;
+                    subscription = subData;
+                    break;
+                  }
+                }
+              }
+              
+              membersData.push({
+                id: userData.uid,
+                ...userData,
+                subscriptionStatus: isActive ? 'active' : 'inactive',
+                subscriptionType: subscription?.paymentType || 'N/A',
+                paymentPlan: subscription?.paymentPlan,
+                joinedDate: subscription?.createdAt?.toDate() || userData.createdAt?.toDate(),
+              });
+            }
+          }
+          
+          setMembers(membersData);
+          setLoading(false);
+        } else {
+          // If members collection is empty, fallback to subscriptions
+          fetchMembersFallback();
+        }
+      },
+      async (error) => {
+        console.error('Error in real-time members listener:', error);
+        // Fallback to subscriptions on error
+        await fetchMembersFallback();
+      }
+    );
+
+    // Fallback function to fetch ALL registered students (not just those who paid)
+    const fetchMembersFallback = async () => {
+      try {
+        if (activeTab === 'council') {
+          // For council, show all registered students (any program) with council subscription status
+          const allUsersSnapshot = await getDocs(collection(db, 'users'));
+          const councilSubscriptionsQuery = query(
+            collection(db, 'subscriptions'),
+            where('type', '==', 'council')
+          );
+          const subscriptionsSnapshot = await getDocs(councilSubscriptionsQuery);
+          
+          const membersData = [];
+          const now = new Date();
+          
+          for (const doc of allUsersSnapshot.docs) {
+            const userData = doc.data();
+            if (userData.isAdmin) continue;
+            
+            // Check for active council subscription
+            const subscription = subscriptionsSnapshot.docs
+              .find(subDoc => subDoc.data().userId === userData.uid)?.data();
+            
+            let isActive = false;
+            if (subscription?.status === 'active') {
+              const endDate = subscription.endDate?.toDate?.() || subscription.endDate;
+              if (!endDate || new Date(endDate) >= now) {
+                isActive = true;
+              }
+            }
+            
+            membersData.push({
+              id: userData.uid,
+              ...userData,
+              subscriptionStatus: isActive ? 'active' : 'inactive',
+              subscriptionType: subscription?.paymentType || 'N/A',
+              paymentPlan: subscription?.paymentPlan,
+              joinedDate: subscription?.createdAt?.toDate() || userData.createdAt?.toDate(),
+            });
+          }
+          setMembers(membersData);
+        } else {
+          // Fetch ALL registered students by program (show everyone)
+          const usersQuery = query(
+            collection(db, 'users'),
+            where('program', '==', currentTab.program)
+          );
+          const usersSnapshot = await getDocs(usersQuery);
+          
+          const membersData = [];
+          for (const doc of usersSnapshot.docs) {
+            const userData = doc.data();
+            if (userData.isAdmin) continue;
+            
+            // Check if user has active subscription for this organization
+            const subscriptionsQuery = query(
+              collection(db, 'subscriptions'),
+              where('userId', '==', userData.uid),
+              where('type', '==', 'organization'),
+              where('organizationId', '==', activeTab)
+            );
+            const subscriptionsSnapshot = await getDocs(subscriptionsQuery);
+            
+            // Check for active subscription (not expired)
+            let hasActiveSubscription = false;
+            let subscription = null;
+            const now = new Date();
+            
+            for (const subDoc of subscriptionsSnapshot.docs) {
+              const subData = subDoc.data();
+              if (subData.status === 'active') {
+                const endDate = subData.endDate?.toDate?.() || subData.endDate;
+                if (!endDate || new Date(endDate) >= now) {
+                  hasActiveSubscription = true;
+                  subscription = subData;
+                  break;
+                }
+              }
+            }
+            
+            // Also check members collection
+            const membersQuery = query(
+              collection(db, 'members'),
+              where('userId', '==', userData.uid),
+              where('organizationId', '==', activeTab)
+            );
+            const membersSnapshot = await getDocs(membersQuery);
+            const memberData = membersSnapshot.docs[0]?.data();
+            
+            const isActive = hasActiveSubscription || (memberData?.status === 'active');
+            
+            membersData.push({
+              id: userData.uid,
+              ...userData,
+              subscriptionStatus: isActive ? 'active' : 'inactive',
+              subscriptionType: subscription?.paymentType || memberData?.paymentPlan || 'N/A',
+              paymentPlan: subscription?.paymentPlan || memberData?.paymentPlan,
+              joinedDate: subscription?.createdAt?.toDate() || memberData?.createdAt?.toDate() || memberData?.joinedAt?.toDate() || userData.createdAt?.toDate(),
+            });
+          }
+          setMembers(membersData);
+        }
+      } catch (err) {
+        console.error('Error in fallback fetch:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    return () => unsubscribe();
   }, [activeTab]);
 
   useEffect(() => {
@@ -93,10 +339,32 @@ export default function AdminMembersPage() {
       const membersSnapshot = await getDocs(membersQuery);
       
       if (!membersSnapshot.empty) {
-        // Use members collection data
-        const membersData = membersSnapshot.docs.map(doc => {
+        // Use members collection data (filter to ensure only registered students)
+        const membersData = [];
+        for (const doc of membersSnapshot.docs) {
           const data = doc.data();
-          return {
+          
+          // Verify user exists in users collection and is not an admin
+          if (data.userId) {
+            try {
+              const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', data.userId)));
+              if (!userDoc.empty) {
+                const userData = userDoc.docs[0].data();
+                // Only include registered students (exclude admins)
+                if (userData.isAdmin) {
+                  continue;
+                }
+              } else {
+                // User doesn't exist in users collection, skip
+                continue;
+              }
+            } catch (err) {
+              console.error('Error verifying user:', err);
+              // Continue anyway if verification fails
+            }
+          }
+          
+          membersData.push({
             id: data.userId,
             ...data,
             subscriptionStatus: data.status || 'active',
@@ -105,8 +373,8 @@ export default function AdminMembersPage() {
             semesterType: data.semesterType,
             semesterLabel: data.semesterLabel,
             joinedDate: data.joinedAt?.toDate() || data.createdAt?.toDate() || null,
-          };
         });
+        }
         setMembers(membersData);
       } else {
         // Fallback to subscriptions
@@ -122,12 +390,18 @@ export default function AdminMembersPage() {
           // Get unique user IDs
           const userIds = [...new Set(subscriptionsSnapshot.docs.map(doc => doc.data().userId))];
           
-          // Fetch user details for each council member
+          // Fetch user details for each council member (only registered students, exclude admins)
           const membersData = [];
           for (const userId of userIds) {
             const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', userId)));
             if (!userDoc.empty) {
               const userData = userDoc.docs[0].data();
+              
+              // Only include registered students (exclude admins)
+              if (userData.isAdmin) {
+                continue;
+              }
+              
               const subscription = subscriptionsSnapshot.docs.find(doc => doc.data().userId === userId)?.data();
               membersData.push({
                 id: userId,
@@ -143,7 +417,7 @@ export default function AdminMembersPage() {
           }
           setMembers(membersData);
         } else {
-          // Fetch organization members by program
+          // Fetch ALL registered students by program (show everyone, not just those who paid)
           const usersQuery = query(
             collection(db, 'users'),
             where('program', '==', currentTab.program)
@@ -154,27 +428,58 @@ export default function AdminMembersPage() {
           for (const doc of usersSnapshot.docs) {
             const userData = doc.data();
             
-            // Check if user has active subscription
+            // Only include registered students (exclude admins)
+            if (userData.isAdmin) {
+              continue;
+            }
+            
+            // Check if user has active subscription for this organization
             const subscriptionsQuery = query(
               collection(db, 'subscriptions'),
               where('userId', '==', userData.uid),
               where('type', '==', 'organization'),
-              where('status', '==', 'active')
+              where('organizationId', '==', activeTab)
             );
             const subscriptionsSnapshot = await getDocs(subscriptionsQuery);
             
-            const hasActiveSubscription = !subscriptionsSnapshot.empty;
-            const subscription = subscriptionsSnapshot.docs[0]?.data();
+            // Check for active subscription (not expired)
+            let hasActiveSubscription = false;
+            let subscription = null;
+            const now = new Date();
+            
+            for (const subDoc of subscriptionsSnapshot.docs) {
+              const subData = subDoc.data();
+              if (subData.status === 'active') {
+                const endDate = subData.endDate?.toDate?.() || subData.endDate;
+                if (!endDate || new Date(endDate) >= now) {
+                  hasActiveSubscription = true;
+                  subscription = subData;
+                  break;
+                }
+              }
+            }
+            
+            // Also check members collection for status
+            const membersQuery = query(
+              collection(db, 'members'),
+              where('userId', '==', userData.uid),
+              where('organizationId', '==', activeTab)
+            );
+            const membersSnapshot = await getDocs(membersQuery);
+            const memberData = membersSnapshot.docs[0]?.data();
+            
+            // Status is active if they have active subscription or active member record
+            const isActive = hasActiveSubscription || (memberData?.status === 'active');
             
             membersData.push({
               id: userData.uid,
               ...userData,
-              subscriptionStatus: hasActiveSubscription ? 'active' : 'inactive',
-              subscriptionType: subscription?.paymentType || 'N/A',
-              paymentPlan: subscription?.paymentPlan,
-              semesterType: subscription?.semesterType,
-              semesterLabel: subscription?.semesterLabel,
-              joinedDate: subscription?.createdAt?.toDate() || userData.createdAt?.toDate(),
+              subscriptionStatus: isActive ? 'active' : 'inactive',
+              subscriptionType: subscription?.paymentType || memberData?.paymentPlan || 'N/A',
+              paymentPlan: subscription?.paymentPlan || memberData?.paymentPlan,
+              semesterType: subscription?.semesterType || memberData?.semesterType,
+              semesterLabel: subscription?.semesterLabel || memberData?.semesterLabel,
+              joinedDate: subscription?.createdAt?.toDate() || memberData?.createdAt?.toDate() || memberData?.joinedAt?.toDate() || userData.createdAt?.toDate(),
             });
           }
           setMembers(membersData);
