@@ -5,6 +5,18 @@ import { collection, onSnapshot, orderBy, query, where } from 'firebase/firestor
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/contexts/AuthContext';
 
+const formatTransactionCode = (rawId, createdAt) => {
+  const sanitizedId = (rawId || '').replace(/[^a-zA-Z0-9]/g, '');
+  const suffixSource = sanitizedId.slice(-6) || sanitizedId || Math.random().toString(36).slice(-6);
+  const suffix = suffixSource.toUpperCase().padStart(6, '0');
+
+  const dateObj = createdAt instanceof Date ? createdAt : createdAt ? new Date(createdAt) : null;
+  const isValidDate = dateObj && !Number.isNaN(dateObj.getTime());
+  const datePart = isValidDate ? dateObj.toISOString().slice(0, 10).replace(/-/g, '') : '00000000';
+
+  return `CCS-TXN-${datePart}-${suffix}`;
+};
+
 export default function PaymentHistoryPage() {
   const { user } = useAuth();
   const [filter, setFilter] = useState('all');
@@ -44,6 +56,8 @@ export default function PaymentHistoryPage() {
             
             return {
               id: doc.id,
+              firebaseId: doc.id,
+              code: formatTransactionCode(doc.id, createdAt),
               amount: Number(data.amount) || 0,
               description: description,
               organization: data.organizationName || data.subscriptionType || '—',
@@ -66,13 +80,14 @@ export default function PaymentHistoryPage() {
         setError(null);
       },
       (snapshotError) => {
-        console.error('Failed to load transactions:', snapshotError);
-        // Show more helpful error message
         if (snapshotError.code === 'permission-denied') {
+          console.warn('Payments listener stopped: permission denied (likely because the user logged out).');
+          setTransactions([]);
           setError('Permission denied. Please make sure you are logged in.');
         } else if (snapshotError.code === 'failed-precondition') {
           setError('Database index required. Please contact support.');
         } else {
+          console.error('Failed to load transactions:', snapshotError);
           setError('Unable to load your transactions right now. Please refresh the page.');
         }
         setLoading(false);
@@ -286,8 +301,8 @@ export default function PaymentHistoryPage() {
                 filteredTransactions.map((transaction) => (
                   <tr key={transaction.id} className="transition-colors hover:bg-slate-50">
                     <td className="px-6 py-4 whitespace-nowrap">
-                      <p className="text-sm font-medium text-slate-900">{transaction.id}</p>
-                      <p className="text-xs text-slate-500">{transaction.reference}</p>
+                      <p className="text-sm font-semibold text-slate-900 tracking-wide">{transaction.code}</p>
+                      <p className="text-xs text-slate-500">Ref: {transaction.reference}</p>
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap">
                       <span className="text-sm font-medium text-slate-900">{transaction.organization}</span>

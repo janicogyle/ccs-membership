@@ -260,6 +260,13 @@ export default function StudentDashboard() {
           return true; // If no endDate, assume active
         });
       setActiveSubscriptions(subs);
+    }, (error) => {
+      if (error.code === 'permission-denied') {
+        console.warn('Active subscriptions listener stopped: permission denied (likely due to logout).');
+        setActiveSubscriptions([]);
+        return;
+      }
+      console.error('Error fetching active subscriptions:', error);
     });
 
     return () => unsubscribe();
@@ -289,6 +296,14 @@ export default function StudentDashboard() {
       });
       setTotalPayments(total);
       setTransactionCount(snapshot.docs.length);
+    }, (error) => {
+      if (error.code === 'permission-denied') {
+        console.warn('Transactions stats listener stopped: permission denied (likely due to logout).');
+        setTotalPayments(0);
+        setTransactionCount(0);
+        return;
+      }
+      console.error('Error fetching transactions stats:', error);
     });
 
     return () => unsubscribe();
@@ -345,6 +360,11 @@ export default function StudentDashboard() {
 
       setRecentTransactions(items);
     }, (error) => {
+      if (error.code === 'permission-denied') {
+        console.warn('Recent transactions listener stopped: permission denied (likely due to logout).');
+        setRecentTransactions([]);
+        return;
+      }
       console.error('Error fetching recent transactions:', error);
       setRecentTransactions([]);
     });

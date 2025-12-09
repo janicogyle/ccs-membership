@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState, useRef } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 import { doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, getDocs } from 'firebase/firestore';
@@ -9,11 +9,13 @@ import { db } from '@/lib/firebase';
 
 export default function CashInSuccessPage() {
   const searchParams = useSearchParams();
+  const router = useRouter();
   const { user, isAuthenticated, isLoading } = useAuth();
   const [status, setStatus] = useState('pending');
   const [message, setMessage] = useState('Processing your payment...');
   const [details, setDetails] = useState(null);
   const processedRef = useRef(false);
+  const redirectRef = useRef(false);
 
   useEffect(() => {
     const sessionId = searchParams.get('checkout_session_id');
@@ -58,11 +60,11 @@ export default function CashInSuccessPage() {
         if (!existingTxSnap.empty) {
           const existingTx = existingTxSnap.docs[0].data();
           setStatus('success');
-          setMessage('This payment was already processed.');
           setDetails({
             amount: existingTx.amount,
             alreadyProcessed: true,
           });
+          setMessage('This payment was already processed. Redirecting to your wallet...');
           return;
         }
 
@@ -111,12 +113,12 @@ export default function CashInSuccessPage() {
         });
 
         setStatus('success');
-        setMessage('Cash-in successful! Your wallet has been updated.');
         setDetails({
           amount: amount,
           newBalance: newBalance,
           simulated: true,
         });
+        setMessage('Cash-in successful! Your wallet has been updated. Redirecting to your wallet...');
       } catch (error) {
         console.error('Cash-in processing failed:', error);
         setStatus('error');
@@ -126,6 +128,27 @@ export default function CashInSuccessPage() {
 
     processSimulatedPayment();
   }, [isLoading, searchParams, user]);
+
+  useEffect(() => {
+    if (status !== 'success' || redirectRef.current) {
+      return;
+    }
+
+    const amount = details?.amount;
+    if (typeof amount === 'undefined') {
+      return;
+    }
+
+    redirectRef.current = true;
+
+    const numericAmount = Number(amount);
+    const amountQuery = Number.isFinite(numericAmount) ? `&amount=${numericAmount}` : '';
+    const timeout = setTimeout(() => {
+      router.replace(`/student/wallet?cashIn=success${amountQuery}`);
+    }, 1500);
+
+    return () => clearTimeout(timeout);
+  }, [details, router, status]);
 
   const statusClasses = {
     pending: 'bg-blue-50 text-blue-600 border-blue-200',
@@ -162,12 +185,6 @@ export default function CashInSuccessPage() {
           className="inline-flex items-center justify-center rounded-xl bg-orange-600 px-5 py-3 text-sm font-semibold text-white transition hover:bg-orange-700"
         >
           Back to Dashboard
-        </Link>
-        <Link
-          href="/student/wallet"
-          className="inline-flex items-center justify-center rounded-xl border border-slate-300 px-5 py-3 text-sm font-semibold text-slate-700 transition hover:bg-slate-50"
-        >
-          View Wallet
         </Link>
       </div>
     </div>

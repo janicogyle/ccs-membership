@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function StudentLayout({ children }) {
-  const { user, isAuthenticated, isLoading, logout } = useAuth();
+  const { user, isAuthenticated, isLoading, authReady, logout } = useAuth();
   const router = useRouter();
   const pathname = usePathname();
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -29,7 +29,7 @@ export default function StudentLayout({ children }) {
 
   useEffect(() => {
     // Only redirect after auth is fully loaded AND confirmed no user
-    if (!isLoading && !isAuthenticated && !user) {
+    if (!isLoading && authReady && !isAuthenticated && !user) {
       // Add a small delay to ensure localStorage has been checked
       const timer = setTimeout(() => {
         if (!isAuthenticated && !user) {
@@ -38,7 +38,7 @@ export default function StudentLayout({ children }) {
       }, 100);
       return () => clearTimeout(timer);
     }
-  }, [isAuthenticated, user, isLoading, router]);
+  }, [authReady, isAuthenticated, user, isLoading, router]);
 
   useEffect(() => {
     setIsSidebarOpen(false);
@@ -118,7 +118,9 @@ export default function StudentLayout({ children }) {
 
   const handleLogout = () => {
     logout();
-    router.push('/');
+    setTimeout(() => {
+      router.push('/auth/login');
+    }, 100);
   };
 
   return (

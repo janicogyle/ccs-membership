@@ -10,6 +10,8 @@ export default function AdminLayout({ children }) {
   const router = useRouter()
   const pathname = usePathname()
   const [isAdmin, setIsAdmin] = useState(false)
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false)
+  const [currentDateTime, setCurrentDateTime] = useState('')
 
   useEffect(() => {
     if (!isLoading && (!isAuthenticated || !user?.isAdmin)) {
@@ -18,6 +20,23 @@ export default function AdminLayout({ children }) {
       setIsAdmin(true)
     }
   }, [isAuthenticated, isLoading, user, router])
+
+  useEffect(() => {
+    const updateDateTime = () => {
+      const date = new Date()
+      const dateStr = date.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+      const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+      setCurrentDateTime(`${dateStr} • ${timeStr}`)
+    }
+
+    updateDateTime()
+    const interval = setInterval(updateDateTime, 60000)
+    return () => clearInterval(interval)
+  }, [])
+
+  useEffect(() => {
+    setIsSidebarOpen(false)
+  }, [pathname])
 
   if (isLoading) {
     return (
@@ -42,34 +61,7 @@ export default function AdminLayout({ children }) {
       ),
     },
     {
-      name: 'SPECS Members',
-      href: '/admin/members/specs',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
-    },
-    {
-      name: 'IMAGES Members',
-      href: '/admin/members/images',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
-    },
-    {
-      name: 'ELITES Members',
-      href: '/admin/members/elites',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-        </svg>
-      ),
-    },
-    {
-      name: 'Council Members',
+      name: 'Organizations',
       href: '/admin/council',
       icon: (
         <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -95,44 +87,60 @@ export default function AdminLayout({ children }) {
         </svg>
       ),
     },
-    {
-      name: 'Account Settings',
-      href: '/admin/account',
-      icon: (
-        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        </svg>
-      ),
-    },
   ];
 
   const handleLogout = () => {
     logout();
-    router.push('/');
+    setTimeout(() => {
+      router.push('/auth/login');
+    }, 100);
   };
 
   return (
     <div className="min-h-screen bg-slate-50">
       {/* Top Navbar - Full Width */}
-      <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-between px-8 z-40 shadow-lg">
+      <header className="fixed top-0 left-0 right-0 h-16 bg-gradient-to-r from-orange-500 to-orange-600 flex items-center justify-between px-4 md:px-8 z-40 shadow-lg">
         <div className="flex items-center gap-3">
-          <div className="w-9 h-9 bg-white rounded-xl flex items-center justify-center shadow-sm">
+          <button
+            type="button"
+            onClick={() => setIsSidebarOpen(true)}
+            className="inline-flex h-10 w-10 items-center justify-center rounded-xl bg-white text-orange-600 shadow-md hover:bg-orange-50 focus:outline-none focus:ring-2 focus:ring-orange-300 focus:ring-offset-2 focus:ring-offset-orange-600 lg:hidden"
+            aria-label="Open menu"
+            aria-expanded={isSidebarOpen}
+          >
+            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            </svg>
+          </button>
+          <div className="flex w-9 h-9 items-center justify-center rounded-xl bg-white shadow-sm">
             <span className="text-orange-600 font-black text-sm">CCS</span>
           </div>
-          <span className="text-xl font-black text-white">CCS Admin Panel</span>
+          <span className="text-lg md:text-xl font-black text-white">CCS Admin Panel</span>
         </div>
-        <nav className="flex items-center gap-6">
-          <Link href="/" className="text-white hover:text-orange-100 text-sm font-semibold transition-colors">Home</Link>
-          <Link href="/about" className="text-white hover:text-orange-100 text-sm font-semibold transition-colors">About</Link>
-          <Link href="/contact" className="text-white hover:text-orange-100 text-sm font-semibold transition-colors">Contact</Link>
-          <span className="text-white text-sm font-semibold border-l border-orange-400 pl-6">{user?.name || 'Admin'}</span>
-          <button onClick={handleLogout} className="text-white hover:text-orange-100 text-sm font-semibold transition-colors">Logout</button>
+        <nav className="flex items-center gap-4 md:gap-6">
+          {currentDateTime && (
+            <span className="hidden sm:inline text-orange-100 text-sm font-semibold border-l border-orange-400 pl-4 md:pl-6">
+              {currentDateTime}
+            </span>
+          )}
+          <span className="text-white text-sm font-semibold">
+            {user?.name || 'Admin'}
+          </span>
+          <button
+            onClick={handleLogout}
+            className="inline-flex items-center justify-center rounded-lg border border-white/40 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-white/10"
+          >
+            Logout
+          </button>
         </nav>
       </header>
 
       {/* Sidebar */}
-      <aside className="fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-slate-200 flex flex-col z-30 shadow-lg overflow-y-auto">
+      <aside
+        className={`fixed top-16 left-0 bottom-0 w-64 bg-white border-r border-slate-200 flex flex-col z-40 shadow-lg overflow-y-auto transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+          isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
         {/* User Info */}
         <div className="px-4 py-4 border-b border-slate-200 flex-shrink-0">
           <div className="flex items-center gap-3 p-3 bg-orange-50 rounded-xl">
@@ -190,10 +198,22 @@ export default function AdminLayout({ children }) {
         </div>
       </aside>
 
+      {/* Mobile Sidebar Overlay */}
+      {isSidebarOpen ? (
+        <button
+          type="button"
+          aria-label="Close menu"
+          onClick={() => setIsSidebarOpen(false)}
+          className="fixed inset-0 z-30 bg-slate-900/40 backdrop-blur-sm lg:hidden"
+        />
+      ) : null}
+
       {/* Main Content Area */}
-      <div className="fixed top-16 bottom-0 overflow-y-auto bg-slate-50" style={{left: '264px', right: 0}}>
-        <div className="p-6 md:p-8">
-          {children}
+      <div className="pt-16 lg:pl-64">
+        <div className="min-h-[calc(100vh-4rem)] overflow-y-auto bg-slate-50">
+          <div className="p-6 md:p-8">
+            {children}
+          </div>
         </div>
       </div>
     </div>

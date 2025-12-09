@@ -119,17 +119,12 @@ export default function Home() {
       <section className="container mx-auto px-4 py-16 md:py-24">
         <div className="mx-auto max-w-4xl text-center">
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }}>
-            <div className="mb-6 inline-block rounded-full border border-orange-200 bg-orange-100 px-4 py-1.5 text-sm font-medium text-orange-700">
-              Student Council &amp; Organization
-            </div>
             <h1 className="mb-6 text-4xl font-bold leading-tight text-gray-900 md:text-5xl lg:text-6xl">
-              <span className="text-orange-600">Student Council &amp;</span>
+              <span className="text-orange-600">Gordon College</span>
               <br />
-              <span className="text-orange-600">Organization</span>
+              <span className="text-orange-600">College of Computer Studies</span>
               <br />
-              Online Membership
-              <br />
-              <span className="text-orange-600">Payment System</span>
+              Membership Portal
             </h1>
           </motion.div>
 

@@ -31,20 +31,22 @@ export const useAuthRequest = () => {
   }, [router]);
 
   const login = useCallback(
-    (credentials) => handleAuth(authService.login.bind(authService), credentials, '/', MESSAGES.LOGIN_FAILED),
+    (credentials) => handleAuth(authService.login.bind(authService), credentials, '/student/dashboard', MESSAGES.LOGIN_FAILED),
     [handleAuth]
   );
 
   const register = useCallback(
-    (userData) => handleAuth(authService.register.bind(authService), userData, '/', MESSAGES.REGISTER_FAILED),
+    (userData) => handleAuth(authService.register.bind(authService), userData, '/student/dashboard', MESSAGES.REGISTER_FAILED),
     [handleAuth]
   );
 
   const logout = useCallback(async () => {
     setLoading(true);
     await authService.logout();
-    router.push('/auth/login');
-    setLoading(false);
+    setTimeout(() => {
+      router.push('/auth/login');
+      setLoading(false);
+    }, 100);
   }, [router]);
 
   return { login, register, logout, loading, error };

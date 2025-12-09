@@ -84,10 +84,18 @@ export function AuthProvider({ children }) {
             authService.storeUser(basicUser);
           }
         } else {
-          // Only clear if Firebase confirms no user
-          setUser(null);
-          setIsAuthenticated(false);
-          authService.clearToken();
+          // Preserve auth if we still have a cached session while Firebase is catching up
+          const storedUser = authService.getStoredUser();
+          const storedToken = authService.getToken();
+
+          if (storedUser && storedToken) {
+            setUser(storedUser);
+            setIsAuthenticated(true);
+          } else {
+            setUser(null);
+            setIsAuthenticated(false);
+            authService.clearToken();
+          }
         }
       } catch (error) {
         console.error('Auth state change error:', error);
@@ -110,7 +118,9 @@ export function AuthProvider({ children }) {
   };
 
   const logout = () => {
-    authService.clearToken();
+    authService.logout().catch((error) => {
+      console.error('Error during logout:', error);
+    });
     setUser(null);
     setIsAuthenticated(false);
     setAuthReady(true);

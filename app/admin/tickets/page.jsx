@@ -14,11 +14,37 @@ export default function AdminTickets() {
   const { user } = useAuth()
 
   useEffect(() => {
-    if (user?.uid) {
-      fetchTickets()
+    if (!user?.uid) {
+      return
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+
+    fetchTickets()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.uid])
+
+  const fetchTicketsDirect = async () => {
+    try {
+        const snapshot = await getDocs(query(collection(db, 'tickets'), orderBy('createdAt', 'desc')))
+      const ticketsData = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data(),
+        createdAt: doc.data().createdAt?.toDate ? doc.data().createdAt.toDate() : doc.data().createdAt || null,
+        updatedAt: doc.data().updatedAt?.toDate ? doc.data().updatedAt.toDate() : doc.data().updatedAt || null,
+        resolvedAt: doc.data().resolvedAt?.toDate ? doc.data().resolvedAt.toDate() : doc.data().resolvedAt || null,
+      }))
+      setTickets(ticketsData)
+    } catch (fallbackError) {
+      if (fallbackError.code === 'permission-denied' || fallbackError.message?.includes('Missing or insufficient permissions')) {
+        console.warn('Admin ticket fallback fetch stopped: permission denied (likely after logout).')
+        setTickets([])
+        setLoading(false)
+        return
+      }
+      console.error('Direct Firestore admin ticket fetch failed:', fallbackError)
+      setError('Unable to load tickets. Please check your Firebase rules.')
+    }
+  }
+
 
   const fetchTickets = async () => {
     if (!user?.uid) return
@@ -40,10 +66,52 @@ export default function AdminTickets() {
 
       setTickets(ticketsData)
     } catch (err) {
+      if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
+        console.warn('Admin ticket fetch stopped: permission denied (likely after logout).')
+        setTickets([])
+        setLoading(false)
+        return
+      }
       console.error('Error fetching tickets:', err)
+      if (err.message?.includes('Firebase admin is not configured')) {
+        await fetchTicketsDirect()
+        return
+      }
       setError(err.message || 'Unable to load tickets. Please try again.')
     } finally {
       setLoading(false)
+    }
+  }
+
+  const updateTicketStatusDirect = async (ticketId, status) => {
+    try {
+      const now = new Date()
+      await updateDoc(doc(db, 'tickets', ticketId), {
+        status,
+        updatedAt: now,
+        resolvedAt: status === 'resolved' ? now : null,
+      })
+
+      const existing = tickets.find(t => t.id === ticketId)
+      if (!existing) {
+        return
+      }
+
+      const merged = {
+        ...existing,
+        status,
+        updatedAt: now,
+        resolvedAt: status === 'resolved' ? now : null,
+      }
+
+      setTickets(prev => prev.map(t => (t.id === ticketId ? merged : t)))
+
+      if (selectedTicket?.id === ticketId) {
+        setSelectedTicket(merged)
+      }
+    } catch (fallbackError) {
+      console.error('Direct Firestore ticket status update failed:', fallbackError)
+      setError('Unable to update ticket status. Please check your Firebase rules.')
     }
   }
 
@@ -52,23 +120,25 @@ export default function AdminTickets() {
       setError('Authentication required. Please log in again.')
       return
     }
+
     try {
       setError('')
-      
+
       const ticketRef = doc(db, 'tickets', ticketId)
       const updateData = {
         status,
         updatedAt: serverTimestamp(),
       }
-      
+
       if (status === 'resolved') {
         updateData.resolvedAt = serverTimestamp()
       }
-      
+
       await updateDoc(ticketRef, updateData)
 
+      const existing = tickets.find(t => t.id === ticketId)
       const updatedTicket = {
-        ...tickets.find(t => t.id === ticketId),
+        ...existing,
         status,
         updatedAt: new Date(),
         resolvedAt: status === 'resolved' ? new Date() : null,
@@ -80,6 +150,11 @@ export default function AdminTickets() {
         setSelectedTicket(updatedTicket)
       }
     } catch (err) {
+      if (err.message?.includes('Firebase admin is not configured')) {
+        await updateTicketStatusDirect(ticketId, status)
+        return
+      }
+
       console.error('Error updating ticket:', err)
       setError('Unable to update ticket status. Please try again.')
     }

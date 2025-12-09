@@ -17,7 +17,9 @@ export default function Header() {
   const handleLogout = async () => {
     await authService.logout();
     setIsAuthenticated(false);
-    router.push('/auth/login');
+    setTimeout(() => {
+      router.push('/auth/login');
+    }, 100);
   };
 
   return (

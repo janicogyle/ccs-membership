@@ -9,11 +9,11 @@ export default function AdminDashboard() {
   const { user } = useAuth()
   const [stats, setStats] = useState({
     totalMembers: 0,
+    councilMembers: 0,
     specsMembers: 0,
     imagesMembers: 0,
     elitesMembers: 0,
     totalPayments: 0,
-    pendingPayments: 0,
   })
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
@@ -48,25 +48,59 @@ export default function AdminDashboard() {
         const transactionsSnapshot = await getDocs(collection(db, 'transactions'))
         
         // Calculate actual stats
-        const specsMembers = membersSnapshot.docs.filter(doc => doc.data().organizationId === 'specs').length
-        const imagesMembers = membersSnapshot.docs.filter(doc => doc.data().organizationId === 'images').length
-        const elitesMembers = membersSnapshot.docs.filter(doc => doc.data().organizationId === 'elites').length
+        const councilMemberIds = new Set()
+        const specsMemberIds = new Set()
+        const imagesMemberIds = new Set()
+        const elitesMemberIds = new Set()
+
+        membersSnapshot.docs.forEach(doc => {
+          const data = doc.data()
+          const orgId = data.organizationId
+
+          if (data.status && data.status !== 'active') {
+            return
+          }
+
+          const userKey = data.userId || data.uid || data.studentId || data.email || data.userEmail || doc.id
+
+          if (!userKey) {
+            return
+          }
+
+          switch (orgId) {
+            case 'student_council':
+              councilMemberIds.add(userKey)
+              break
+            case 'specs':
+              specsMemberIds.add(userKey)
+              break
+            case 'images':
+              imagesMemberIds.add(userKey)
+              break
+            case 'elites':
+              elitesMemberIds.add(userKey)
+              break
+            default:
+              break
+          }
+        })
+
+        const councilMembers = councilMemberIds.size
+        const specsMembers = specsMemberIds.size
+        const imagesMembers = imagesMemberIds.size
+        const elitesMembers = elitesMemberIds.size
         
         const totalPayments = transactionsSnapshot.docs
           .filter(doc => doc.data().status === 'completed' && doc.data().type !== 'cash_in')
           .reduce((sum, doc) => sum + (Number(doc.data().amount) || 0), 0)
         
-        const pendingPayments = transactionsSnapshot.docs
-          .filter(doc => doc.data().status === 'pending')
-          .reduce((sum, doc) => sum + (Number(doc.data().amount) || 0), 0)
-        
         setStats({
           totalMembers,
+          councilMembers,
           specsMembers,
           imagesMembers,
           elitesMembers,
           totalPayments,
-          pendingPayments,
         })
 
         // Fetch recent activities from real data
@@ -194,7 +228,7 @@ export default function AdminDashboard() {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <div className="bg-white rounded-2xl p-6 border-l-4 border-blue-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-start justify-between">
             <div>
@@ -213,8 +247,8 @@ export default function AdminDashboard() {
           <div className="flex items-start justify-between">
             <div>
               <p className="text-slate-600 text-sm mb-2">Organizations</p>
-              <p className="text-3xl font-black text-slate-900">3</p>
-              <p className="text-xs text-slate-500 mt-2 font-medium">ELITES, SPECS, IMAGES</p>
+              <p className="text-3xl font-black text-slate-900">4</p>
+              <p className="text-xs text-slate-500 mt-2 font-medium">Student Council, ELITES, SPECS, IMAGES</p>
             </div>
             <div className="w-14 h-14 bg-purple-100 rounded-xl flex items-center justify-center">
               <svg className="w-7 h-7 text-purple-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -238,23 +272,28 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        <div className="bg-white rounded-2xl p-6 border-l-4 border-orange-500 shadow-sm hover:shadow-lg transition-all">
-          <div className="flex items-start justify-between">
-            <div>
-              <p className="text-slate-600 text-sm mb-2">Pending Payments</p>
-              <p className="text-3xl font-black text-slate-900">₱{stats.pendingPayments.toLocaleString()}</p>
-            </div>
-            <div className="w-14 h-14 bg-orange-100 rounded-xl flex items-center justify-center">
-              <svg className="w-7 h-7 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-        </div>
       </div>
 
       {/* Organization Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+        <div className="bg-white rounded-2xl p-8 border-l-4 border-orange-500 shadow-sm hover:shadow-lg transition-all">
+          <div className="flex items-center gap-4 mb-6">
+            <div className="w-16 h-16 bg-orange-100 rounded-xl flex items-center justify-center text-2xl">
+              🏛️
+            </div>
+            <div>
+              <h3 className="text-xl font-black text-slate-900">Student Council</h3>
+              <p className="text-sm text-slate-600 font-medium">Department Student Government</p>
+            </div>
+          </div>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center">
+              <span className="text-sm text-slate-600">Total Members</span>
+              <span className="text-3xl font-black text-orange-600">{stats.councilMembers}</span>
+            </div>
+          </div>
+        </div>
+
         <div className="bg-white rounded-2xl p-8 border-l-4 border-purple-500 shadow-sm hover:shadow-lg transition-all">
           <div className="flex items-center gap-4 mb-6">
             <div className="w-16 h-16 bg-purple-100 rounded-xl flex items-center justify-center text-2xl">

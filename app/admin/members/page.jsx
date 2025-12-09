@@ -55,7 +55,7 @@ export default function AdminMembersPage() {
     },
     { 
       id: 'council', 
-      name: 'Council Members', 
+      name: 'Student Council', 
       fullName: 'Computer and Communication Sciences Council',
       program: 'all', 
       color: 'orange',
@@ -195,6 +195,12 @@ export default function AdminMembersPage() {
         }
       },
       async (error) => {
+        if (error.code === 'permission-denied') {
+          console.warn('Admin members listener stopped: permission denied (likely due to logout).');
+          setMembers([]);
+          setLoading(false);
+          return;
+        }
         console.error('Error in real-time members listener:', error);
         // Fallback to subscriptions on error
         await fetchMembersFallback();

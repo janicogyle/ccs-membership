@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
 import { doc, getDoc, setDoc, updateDoc, collection, addDoc, query, where, onSnapshot, orderBy } from 'firebase/firestore'
 import { db } from '@/lib/firebase'
@@ -16,12 +17,29 @@ export default function StudentWallet() {
   const [transactions, setTransactions] = useState([])
   const [error, setError] = useState('')
   const [success, setSuccess] = useState('')
+  const [showCashInSuccess, setShowCashInSuccess] = useState(false)
+  const [cashInSuccessAmount, setCashInSuccessAmount] = useState(null)
+  const router = useRouter()
+  const searchParams = useSearchParams()
 
   useEffect(() => {
     if (user?.uid) {
       fetchWallet()
     }
   }, [user])
+
+  useEffect(() => {
+    const status = searchParams?.get('cashIn')
+    if (status === 'success' && !showCashInSuccess) {
+      const amountParam = searchParams.get('amount')
+      const parsedAmount = amountParam ? parseFloat(amountParam) : null
+
+      setCashInSuccessAmount(Number.isFinite(parsedAmount) ? parsedAmount : null)
+      setShowCashInSuccess(true)
+
+      router.replace('/student/wallet', { scroll: false })
+    }
+  }, [router, searchParams, showCashInSuccess])
 
   // Real-time transactions listener
   useEffect(() => {
@@ -44,6 +62,11 @@ export default function StudentWallet() {
       }))
       setTransactions(transactionsData)
     }, (err) => {
+      if (err.code === 'permission-denied') {
+        console.warn('Wallet transactions listener stopped: permission denied (likely due to logout).')
+        setTransactions([])
+        return
+      }
       console.error('Error fetching transactions:', err)
     })
 
@@ -227,6 +250,57 @@ export default function StudentWallet() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
             </svg>
             <p className="text-sm font-medium text-red-700">{error}</p>
+          </div>
+        </div>
+      )}
+
+      {showCashInSuccess && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4">
+          <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-xl">
+            <div className="mb-4 flex items-start justify-between">
+              <div className="flex items-center gap-3">
+                <span className="rounded-full bg-green-100 p-2">
+                  <svg className="h-6 w-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                  </svg>
+                </span>
+                <div>
+                  <h3 className="text-xl font-bold text-slate-900">Cash-in Successful</h3>
+                  <p className="text-sm text-slate-600">Your funds are now available for payments and subscriptions.</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowCashInSuccess(false)
+                  setCashInSuccessAmount(null)
+                }}
+                className="rounded-lg p-2 text-slate-400 transition hover:bg-slate-100 hover:text-slate-600"
+              >
+                <svg className="h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {cashInSuccessAmount !== null && (
+              <div className="mb-6 rounded-xl border border-slate-200 bg-slate-50 p-4 text-center">
+                <p className="text-xs font-medium uppercase tracking-wide text-slate-500">Amount Added</p>
+                <p className="mt-2 text-3xl font-bold text-slate-900">₱{cashInSuccessAmount.toFixed(2)}</p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <button
+                onClick={() => {
+                  setShowCashInSuccess(false)
+                  setCashInSuccessAmount(null)
+                }}
+                className="w-full rounded-lg bg-orange-600 px-6 py-3 text-sm font-semibold text-white transition hover:bg-orange-700"
+              >
+                Got it
+              </button>
+              <p className="text-center text-xs text-slate-500">You can review this transaction in your history below.</p>
+            </div>
           </div>
         </div>
       )}

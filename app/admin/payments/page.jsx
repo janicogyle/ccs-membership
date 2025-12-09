@@ -1,8 +1,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { collection, getDocs, query, orderBy, where } from 'firebase/firestore';
+import { collection, getDocs, query, orderBy, doc, getDoc } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
+
+const formatTransactionCode = (rawId, createdAt) => {
+  const sanitizedId = (rawId || '').replace(/[^a-zA-Z0-9]/g, '');
+  const suffixSource = sanitizedId.slice(-6) || sanitizedId || Math.random().toString(36).slice(-6);
+  const suffix = suffixSource.toUpperCase().padStart(6, '0');
+
+  const dateObj = createdAt instanceof Date ? createdAt : createdAt ? new Date(createdAt) : null;
+  const isValidDate = dateObj && !Number.isNaN(dateObj.getTime());
+  const datePart = isValidDate ? dateObj.toISOString().slice(0, 10).replace(/-/g, '') : '00000000';
+
+  return `CCS-TXN-${datePart}-${suffix}`;
+};
 
 export default function AdminPaymentsPage() {
   const [filter, setFilter] = useState('all');
@@ -36,7 +48,8 @@ export default function AdminPaymentsPage() {
           
           return {
             id: doc.id,
-            transactionId: doc.id,
+            firebaseId: doc.id,
+            transactionCode: formatTransactionCode(doc.id, createdAt),
             userId: data.userId,
             student: data.userName || data.name || 'Unknown',
             organization: data.organizationName || data.organizationId || '—',
@@ -49,7 +62,7 @@ export default function AdminPaymentsPage() {
 
       // Fetch user names for transactions that don't have userName
       const userIds = [...new Set(allTransactions
-        .filter(t => t.userId && !t.student.includes('Unknown'))
+        .filter(t => t.userId && (!t.student || t.student === 'Unknown'))
         .map(t => t.userId)
         .filter(Boolean)
       )];
@@ -57,9 +70,10 @@ export default function AdminPaymentsPage() {
       const usersMap = new Map();
       for (const userId of userIds) {
         try {
-          const userDoc = await getDocs(query(collection(db, 'users'), where('uid', '==', userId)));
-          if (!userDoc.empty) {
-            const userData = userDoc.docs[0].data();
+          const userDocRef = doc(db, 'users', userId);
+          const userDocSnap = await getDoc(userDocRef);
+          if (userDocSnap.exists()) {
+            const userData = userDocSnap.data();
             const userName = userData.name || `${userData.firstName || ''} ${userData.lastName || ''}`.trim() || userData.email || 'Unknown';
             usersMap.set(userId, userName);
           }
@@ -69,10 +83,13 @@ export default function AdminPaymentsPage() {
       }
 
       // Update student names
-      const paymentsWithNames = allTransactions.map(payment => ({
-        ...payment,
-        student: usersMap.get(payment.userId) || payment.student,
-      }));
+      const paymentsWithNames = allTransactions.map(payment => {
+        const resolvedName = usersMap.get(payment.userId);
+        return {
+          ...payment,
+          student: resolvedName || payment.student,
+        };
+      });
 
       setPayments(paymentsWithNames);
     } catch (err) {
@@ -85,12 +102,11 @@ export default function AdminPaymentsPage() {
 
   const filteredPayments = filter === 'all' ? payments : payments.filter(p => p.status === filter);
   const totalRevenue = payments.filter(p => p.status === 'completed').reduce((sum, p) => sum + p.amount, 0);
-  const pendingRevenue = payments.filter(p => p.status === 'pending').reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <div className="space-y-6">
       {/* Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-2">
             <p className="text-sm text-slate-500">Total Revenue</p>
@@ -115,17 +131,6 @@ export default function AdminPaymentsPage() {
           <p className="text-3xl font-bold text-slate-900">{payments.length}</p>
         </div>
 
-        <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-          <div className="flex items-center justify-between mb-2">
-            <p className="text-sm text-slate-500">Pending Amount</p>
-            <div className="w-10 h-10 bg-yellow-100 rounded-lg flex items-center justify-center">
-              <svg className="w-5 h-5 text-yellow-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-          </div>
-          <p className="text-3xl font-bold text-slate-900">₱{pendingRevenue.toLocaleString()}</p>
-        </div>
       </div>
 
       {/* Filters and Table */}
@@ -206,7 +211,11 @@ export default function AdminPaymentsPage() {
               ) : (
                 filteredPayments.map((payment) => (
                   <tr key={payment.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="px-6 py-4 text-sm font-medium text-slate-900">{payment.transactionId.substring(0, 8)}...</td>
+                    <td className="px-6 py-4">
+                      <span className="inline-flex items-center rounded-md bg-slate-100 px-3 py-1 text-xs font-semibold text-slate-700 tracking-wide">
+                        {payment.transactionCode}
+                      </span>
+                    </td>
                     <td className="px-6 py-4 text-sm text-slate-900">{payment.student}</td>
                     <td className="px-6 py-4">
                       <span className={`inline-flex px-2.5 py-1 rounded-md text-xs font-medium ${

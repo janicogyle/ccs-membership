@@ -1,12 +1,16 @@
 'use client';
 
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 
 export default function Header({ className = '' }) {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, authReady } = useAuth();
+  const pathname = usePathname();
 
-  if (isAuthenticated) {
+  const isProtectedRoute = pathname?.startsWith('/student') || pathname?.startsWith('/admin');
+
+  if (!authReady || isAuthenticated || isProtectedRoute) {
     return null;
   }
 

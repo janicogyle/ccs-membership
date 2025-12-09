@@ -153,7 +153,12 @@ export default function StudentMembers() {
         setMembers(membersData);
         setLoading(false);
       }, (error) => {
-        console.error('Error in real-time members listener:', error);
+        if (error.code === 'permission-denied') {
+          console.warn('Student members listener stopped: permission denied (likely due to logout).');
+          setMembers([]);
+        } else {
+          console.error('Error in real-time members listener:', error);
+        }
         setLoading(false);
       });
 

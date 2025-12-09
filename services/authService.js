@@ -115,6 +115,24 @@ class AuthService {
         if (data.user) {
           this.storeUser(data.user);
         }
+
+        if (userData?.email && userData?.password) {
+          try {
+            const credential = await signInWithEmailAndPassword(
+              auth,
+              userData.email,
+              userData.password
+            );
+
+            const refreshedToken = await credential.user.getIdToken();
+            this.storeToken(refreshedToken);
+            data.token = refreshedToken;
+          } catch (firebaseError) {
+            console.error('Post-registration login error:', firebaseError);
+          }
+        } else {
+          console.warn('Skipping auto login after registration: missing credentials.');
+        }
       }
       
       return data;

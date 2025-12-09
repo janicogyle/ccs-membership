@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { useAuth } from '@/contexts/AuthContext'
 import { collection, query, where, onSnapshot, addDoc, serverTimestamp } from 'firebase/firestore'
 import { db, auth } from '@/lib/firebase'
@@ -13,10 +13,7 @@ export default function StudentTickets() {
   const [showForm, setShowForm] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
-  const [formData, setFormData] = useState({
-    subject: '',
-    message: '',
-  })
+  const [formData, setFormData] = useState({ subject: '', message: '' })
 
   useEffect(() => {
     if (!user?.uid) {
@@ -26,30 +23,23 @@ export default function StudentTickets() {
     }
 
     setLoading(true)
-    // Use query without orderBy to avoid index requirement, then sort in memory
-    const ticketsRef = collection(db, 'tickets')
-    const q = query(
-      ticketsRef,
-      where('userId', '==', user.uid)
-    )
-    
-    // Use onSnapshot for real-time updates
+
+    const q = query(collection(db, 'tickets'), where('userId', '==', user.uid))
     const unsubscribe = onSnapshot(
       q,
-      (snapshot) => {
+      snapshot => {
         const ticketsData = snapshot.docs
           .map(doc => {
             const data = doc.data()
             return {
               id: doc.id,
               ...data,
-              createdAt: data.createdAt?.toDate() || null,
-              updatedAt: data.updatedAt?.toDate() || null,
-              resolvedAt: data.resolvedAt?.toDate() || null,
+              createdAt: data.createdAt?.toDate?.() || null,
+              updatedAt: data.updatedAt?.toDate?.() || null,
+              resolvedAt: data.resolvedAt?.toDate?.() || null,
             }
           })
           .sort((a, b) => {
-            // Sort by createdAt descending (newest first)
             const aTime = a.createdAt?.getTime() || 0
             const bTime = b.createdAt?.getTime() || 0
             return bTime - aTime
@@ -59,13 +49,15 @@ export default function StudentTickets() {
         setLoading(false)
         setError('')
       },
-      (err) => {
-        console.error('Error fetching tickets:', err)
-        if (err.code === 'permission-denied') {
-          setError('Permission denied. Please make sure you are logged in.')
-        } else {
-          setError('Unable to load tickets. Please refresh the page.')
+      err => {
+        if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
+          console.warn('Tickets listener stopped: permission denied (likely due to logout).')
+          setTickets([])
+          setLoading(false)
+          return
         }
+        console.error('Error fetching tickets:', err)
+        setError('Unable to load tickets. Please refresh the page.')
         setLoading(false)
       }
     )
@@ -73,34 +65,37 @@ export default function StudentTickets() {
     return () => unsubscribe()
   }, [user?.uid])
 
-  const handleChange = (e) => {
-    const { name, value } = e.target
+  const handleChange = event => {
+    const { name, value } = event.target
     setFormData(prev => ({ ...prev, [name]: value }))
     setError('')
   }
 
-  const handleSubmit = async (e) => {
-    e.preventDefault()
-    
+  const handleSubmit = async event => {
+    event.preventDefault()
+
     if (!formData.subject.trim() || !formData.message.trim()) {
       setError('Please fill in all fields')
       return
     }
 
+    setSubmitting(true)
+    setError('')
+
     try {
-      // Check Firebase Auth directly
       const currentUser = auth.currentUser
+
       if (!currentUser) {
         setError('You are not authenticated with Firebase. Please log out and log in again.')
         return
       }
 
-      setSubmitting(true)
-      setError('')
-
       const ticketPayload = {
         userId: currentUser.uid,
-        name: user?.firstName && user?.lastName ? `${user.firstName} ${user.lastName}` : (user?.name || currentUser.email),
+        name:
+          user?.firstName && user?.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : user?.name || currentUser.email,
         email: currentUser.email || '',
         phone: user?.phoneNumber || user?.phone || '',
         subject: formData.subject.trim(),
@@ -112,17 +107,14 @@ export default function StudentTickets() {
       }
 
       await addDoc(collection(db, 'tickets'), ticketPayload)
-      
-      // The onSnapshot listener will automatically update the tickets list
+
       setSuccess(true)
       setFormData({ subject: '', message: '' })
       setShowForm(false)
-      
       setTimeout(() => setSuccess(false), 3000)
     } catch (err) {
       console.error('Error submitting ticket:', err)
-      // Show more detailed error
-      if (err.code === 'permission-denied') {
+      if (err.code === 'permission-denied' || err.message?.includes('Missing or insufficient permissions')) {
         setError('Permission denied. Please make sure Firestore rules are published in Firebase Console.')
       } else {
         setError(err.message || 'Failed to submit ticket. Please try again.')
@@ -132,7 +124,7 @@ export default function StudentTickets() {
     }
   }
 
-  const getStatusBadge = (status) => {
+  const getStatusBadge = status => {
     const styles = {
       pending: 'bg-yellow-100 text-yellow-800',
       resolved: 'bg-green-100 text-green-800',
@@ -140,7 +132,7 @@ export default function StudentTickets() {
     return styles[status] || styles.pending
   }
 
-  const getStatusIcon = (status) => {
+  const getStatusIcon = status => {
     if (status === 'resolved') {
       return (
         <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -155,9 +147,16 @@ export default function StudentTickets() {
     )
   }
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-orange-500"></div>
+      </div>
+    )
+  }
+
   return (
     <div className="max-w-5xl mx-auto space-y-6">
-      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Support Tickets</h1>
@@ -171,23 +170,23 @@ export default function StudentTickets() {
         </button>
       </div>
 
-      {/* Success Message */}
       {success && (
         <div className="bg-green-50 border border-green-200 rounded-lg p-4">
           <div className="flex items-center gap-3">
             <svg className="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
             </svg>
-            <p className="text-sm font-medium text-green-700">Ticket submitted successfully! We'll get back to you soon.</p>
+            <p className="text-sm font-medium text-green-700">
+              Ticket submitted successfully! We'll get back to you soon.
+            </p>
           </div>
         </div>
       )}
 
-      {/* New Ticket Form */}
       {showForm && (
         <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
           <h2 className="text-xl font-bold text-slate-900 mb-4">Create New Ticket</h2>
-          
+
           {error && (
             <div className="bg-red-50 border border-red-200 rounded-lg p-4 mb-4">
               <p className="text-sm text-red-700">{error}</p>
@@ -249,88 +248,49 @@ export default function StudentTickets() {
         </div>
       )}
 
-      {/* Tickets List */}
-      <div className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
-        <h2 className="text-xl font-bold text-slate-900 mb-4">My Tickets</h2>
+      {!showForm && error && (
+        <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <p className="text-sm text-red-700">{error}</p>
+        </div>
+      )}
 
-        {loading ? (
-          <div className="flex items-center justify-center py-12">
-            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-orange-600"></div>
-          </div>
-        ) : tickets.length === 0 ? (
-          <div className="text-center py-12">
+      <div className="grid grid-cols-1 gap-4">
+        {tickets.length === 0 ? (
+          <div className="bg-white rounded-xl p-12 text-center border border-slate-200">
             <svg className="w-16 h-16 text-slate-300 mx-auto mb-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
             </svg>
             <p className="text-slate-600 font-medium">No tickets yet</p>
-            <p className="text-slate-500 text-sm mt-1">Click "New Ticket" to submit your first concern</p>
+            <p className="text-slate-500 text-sm mt-1">Submit a ticket to get started.</p>
           </div>
         ) : (
-          <div className="space-y-4">
-            {tickets.map((ticket) => (
-              <div
-                key={ticket.id}
-                className="border border-slate-200 rounded-lg p-5 hover:border-orange-300 transition-colors"
-              >
-                <div className="flex items-start justify-between mb-3">
-                  <div className="flex items-start gap-3 flex-1">
-                    {getStatusIcon(ticket.status)}
-                    <div className="flex-1">
-                      <div className="flex items-center gap-3 mb-2">
-                        <h3 className="text-lg font-bold text-slate-900">{ticket.subject}</h3>
-                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(ticket.status)}`}>
-                          {ticket.status}
-                        </span>
-                      </div>
-                      <p className="text-slate-700 text-sm">{ticket.message}</p>
-                    </div>
+          tickets.map(ticket => (
+            <div key={ticket.id} className="bg-white rounded-xl p-6 border border-slate-200 shadow-sm">
+              <div className="flex items-start gap-3">
+                {getStatusIcon(ticket.status)}
+                <div>
+                  <div className="flex items-center gap-3 mb-1">
+                    <h3 className="text-lg font-bold text-slate-900">{ticket.subject}</h3>
+                    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusBadge(ticket.status)}`}>
+                      {ticket.status}
+                    </span>
                   </div>
-                  <div className="text-right ml-4">
-                    <p className="text-xs text-slate-500">
-                      {ticket.createdAt?.toLocaleDateString('en-US', {
-                        month: 'short',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    </p>
-                    <p className="text-xs text-slate-400">
-                      {ticket.createdAt?.toLocaleTimeString('en-US', {
-                        hour: '2-digit',
-                        minute: '2-digit',
-                      })}
-                    </p>
-                  </div>
+                  <p className="text-sm text-slate-600">
+                    Submitted{' '}
+                    {ticket.createdAt?.toLocaleString('en-US', {
+                      month: 'short',
+                      day: 'numeric',
+                      year: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    }) || 'N/A'}
+                  </p>
+                  <p className="text-slate-700 mt-3 whitespace-pre-wrap">{ticket.message}</p>
                 </div>
-
-                {ticket.status === 'resolved' && (
-                  <div className="mt-3 pt-3 border-t border-slate-200">
-                    <div className="flex items-center gap-2 text-sm text-green-700">
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-                      </svg>
-                      <span className="font-medium">This ticket has been resolved</span>
-                    </div>
-                  </div>
-                )}
               </div>
-            ))}
-          </div>
+            </div>
+          ))
         )}
-      </div>
-
-      {/* Info Card */}
-      <div className="bg-orange-50 border border-orange-200 rounded-lg p-4">
-        <div className="flex items-start gap-3">
-          <svg className="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
-          <div>
-            <p className="text-sm font-semibold text-orange-900">Need immediate assistance?</p>
-            <p className="text-sm text-orange-800 mt-1">
-              For urgent concerns, please email us at <span className="font-medium">ccs.payment@gordon.edu.ph</span>
-            </p>
-          </div>
-        </div>
       </div>
     </div>
   )
